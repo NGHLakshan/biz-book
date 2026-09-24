@@ -10,6 +10,7 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { db } from "../firebase";
+import toast from "react-hot-toast";
 
 const COLLECTION = "transactions";
 
@@ -88,6 +89,9 @@ export const subscribeToTransactions = (callback) => {
       };
     });
     callback(transactions);
+  }, (error) => {
+    console.error("Firebase transaction sync error:", error);
+    toast.error("Database Error: " + error.message, { duration: 6000 });
   });
 };
 
