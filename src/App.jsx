@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { PlusCircle, LayoutDashboard, Settings2, Lock, BarChart2, Wallet } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Toaster } from "react-hot-toast";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./firebase";
 import TransactionForm from "./components/TransactionForm";
 import Dashboard from "./components/Dashboard";
 import OfflineBanner from "./components/OfflineBanner";
@@ -9,6 +11,7 @@ import Settings from "./components/Settings";
 import PinLock from "./components/PinLock";
 import SummaryView from "./components/SummaryView";
 import Logo from "./components/Logo";
+import Login from "./components/Login";
 import { subscribeToTransactions } from "./services/transactions";
 
 const TABS = [
@@ -22,12 +25,44 @@ export default function App() {
   const [tab, setTab] = useState("dashboard");
   const [isLocked, setIsLocked] = useState(() => !!localStorage.getItem("app_pin"));
   const [transactions, setTransactions] = useState([]);
+  const [user, setUser] = useState(null);
+  const [authChecking, setAuthChecking] = useState(true);
 
   useEffect(() => {
-    const unsub = subscribeToTransactions((data) => setTransactions(data));
-    return unsub;
+    // Listen for authentication state changes
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthChecking(false);
+    });
+
+    return unsubscribeAuth;
   }, []);
 
+  // Only subscribe to data when user is authenticated
+  useEffect(() => {
+    if (!user) return;
+    const unsub = subscribeToTransactions((data) => setTransactions(data));
+    return unsub;
+  }, [user]);
+
+  if (authChecking) {
+    return (
+      <div className="h-[100dvh] w-screen bg-slate-950 flex flex-col items-center justify-center">
+        <Logo size="lg" className="animate-pulse mb-6 opacity-50" />
+        <div className="w-8 h-8 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  // Show Login screen if not authenticated
+  if (!user) {
+    return (
+      <>
+        <Toaster position="top-center" toastOptions={{ style: { background: '#1e293b', color: '#fff', borderRadius: '16px', border: '1px solid #334155' } }} />
+        <Login />
+      </>
+    );
+  }
 
   return (
     <div className="h-[100dvh] w-screen bg-slate-950 flex flex-col overflow-hidden relative">

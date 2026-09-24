@@ -1,6 +1,7 @@
 // Firebase App & Firestore (Modular SDK v9+)
 import { initializeApp } from "firebase/app";
 import { initializeFirestore, memoryLocalCache } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCKLLUPTrPkN-qKkXj72OGTwdN4Z00fuoo",
@@ -18,6 +19,9 @@ const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {
   localCache: memoryLocalCache(),
 });
+
+// Initialize Firebase Authentication
+export const auth = getAuth(app);
 
 
 
