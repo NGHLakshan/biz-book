@@ -1,9 +1,10 @@
 // Firebase App & Firestore (Modular SDK v9+)
 import { initializeApp } from "firebase/app";
 import {
+  getFirestore,
   initializeFirestore,
   persistentLocalCache,
-  persistentMultipleTabManager,
+  memoryLocalCache,
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -17,10 +18,15 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// Use persistentLocalCache (replaces deprecated enableIndexedDbPersistence).
-// All writes queue in IndexedDB when offline and auto-sync on reconnect.
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager(),
-  }),
-});
+// Try persistent cache (offline support) — fall back to memory if browser blocks it
+let db;
+try {
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache(),
+  });
+} catch (e) {
+  db = getFirestore(app);
+}
+
+export { db };
+
