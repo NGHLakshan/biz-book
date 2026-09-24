@@ -133,6 +133,35 @@ export default function Dashboard({ onNewEntry }) {
     };
   }, []);
 
+  // Push a history state whenever a modal opens, so the back button closes it
+  useEffect(() => {
+    const anyModalOpen = selectedMethod || showNetCategoryModal || viewingCategory;
+    if (anyModalOpen) {
+      window.history.pushState({ modal: true }, "");
+    }
+  }, [selectedMethod, showNetCategoryModal, viewingCategory]);
+
+  // Handle back button press — close the topmost open modal
+  useEffect(() => {
+    const handlePopState = () => {
+      if (viewingCategory) {
+        setViewingCategory(null);
+        setSelectedSubCategoryFilter(null);
+        setVisibleTxLimit(10);
+      } else if (selectedNetCategory) {
+        setSelectedNetCategory(null);
+        setSelectedNetSubFilter(null);
+      } else if (showNetCategoryModal) {
+        setShowNetCategoryModal(false);
+        setSelectedNetCategory(null);
+      } else if (selectedMethod) {
+        setSelectedMethod(null);
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [viewingCategory, selectedNetCategory, showNetCategoryModal, selectedMethod]);
+
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
       return (
