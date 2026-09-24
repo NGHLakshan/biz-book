@@ -94,5 +94,16 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Force hide Netlify badges and deploy preview drawers */
+  #netlify-badge,
+  #netlify-drawer,
+  netlify-drawer,
+  .netlify-badge {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
 }
 
