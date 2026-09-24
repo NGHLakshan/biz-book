@@ -21,18 +21,9 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    <script>
-      // Aggressively hide Netlify injected badge
-      const observer = new MutationObserver(() => {
-        document.querySelectorAll('a, div').forEach(el => {
-          if (el.textContent === 'Powered by Netlify' || (el.innerText && el.innerText.includes('Powered by Netlify'))) {
-            el.style.display = 'none';
-            el.style.visibility = 'hidden';
-            el.style.opacity = '0';
-          }
-        });
-      });
-      observer.observe(document.body, { childList: true, subtree: true });
-    </script>
+    <style>
+      /* Hide Netlify Badge safely */
+      div[style*="z-index: 2147483647"] { display: none !important; }
+    </style>
   </body>
 </html>
