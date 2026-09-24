@@ -180,7 +180,7 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
   const stepIndicator = getStepIndicator();
 
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center p-6">
+    <div className="fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center px-6 pt-6 pb-28">
 
       {/* Close button (not for verify mode) */}
       {onClose && mode !== "verify" && (
@@ -193,8 +193,8 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
       )}
 
       {/* Header */}
-      <div className="text-center mb-10">
-        <Logo size="lg" className="mx-auto mb-5 shadow-emerald-500/20 shadow-lg" />
+      <div className="text-center mb-8">
+        <Logo size="lg" className="mx-auto mb-4 shadow-emerald-500/20 shadow-lg" />
         <h2 className="text-2xl font-bold text-white mb-1">{getTitleText()}</h2>
         <p className="text-slate-400 text-sm">{getSubtitleText()}</p>
         {stepIndicator && (
@@ -208,19 +208,19 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
       <motion.div
         variants={shakeVariants}
         animate={isError ? "shake" : "normal"}
-        className="flex items-center justify-center mb-14 h-8"
+        className="flex items-center justify-center mb-10 h-8"
       >
         {renderDots()}
       </motion.div>
 
       {/* Keypad */}
-      <div className="grid grid-cols-3 gap-5 max-w-[280px] w-full">
+      <div className="grid grid-cols-3 gap-4 max-w-[280px] w-full">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
           <motion.button
             key={num}
             whileTap={{ scale: 0.85 }}
             onClick={() => handleNumberPress(num.toString())}
-            className="w-20 h-20 rounded-full bg-slate-800/40 border border-slate-700/50 text-white text-2xl font-semibold flex items-center justify-center hover:bg-slate-700/60 active:bg-slate-700 transition-colors"
+            className="w-20 h-20 rounded-full bg-slate-800/40 border border-slate-700/50 text-white text-2xl font-semibold flex items-center justify-center hover:bg-slate-700/60 active:bg-slate-700 transition-colors mx-auto"
           >
             {num}
           </motion.button>
@@ -232,7 +232,7 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
         <motion.button
           whileTap={{ scale: 0.85 }}
           onClick={() => handleNumberPress("0")}
-          className="w-20 h-20 rounded-full bg-slate-800/40 border border-slate-700/50 text-white text-2xl font-semibold flex items-center justify-center hover:bg-slate-700/60 active:bg-slate-700 transition-colors"
+          className="w-20 h-20 rounded-full bg-slate-800/40 border border-slate-700/50 text-white text-2xl font-semibold flex items-center justify-center hover:bg-slate-700/60 active:bg-slate-700 transition-colors mx-auto"
         >
           0
         </motion.button>
@@ -240,7 +240,7 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
         <motion.button
           whileTap={{ scale: 0.85 }}
           onClick={handleDelete}
-          className="w-20 h-20 rounded-full bg-slate-800/40 border border-slate-700/50 text-slate-400 flex items-center justify-center hover:text-white hover:bg-slate-700/60 active:bg-slate-700 transition-colors"
+          className="w-20 h-20 rounded-full bg-slate-800/40 border border-slate-700/50 text-slate-400 flex items-center justify-center hover:text-white hover:bg-slate-700/60 active:bg-slate-700 transition-colors mx-auto"
         >
           <Delete size={24} />
         </motion.button>
