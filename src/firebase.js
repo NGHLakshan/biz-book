@@ -1,6 +1,6 @@
 // Firebase App & Firestore (Modular SDK v9+)
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, memoryLocalCache } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCKLLUPTrPkN-qKkXj72OGTwdN4Z00fuoo",
@@ -13,8 +13,11 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// Simple Firestore — works on ALL browsers including Chrome Custom Tabs and mobile
-// Data syncs from Firebase in real-time, no IndexedDB needed
-export const db = getFirestore(app);
+// memoryLocalCache: fast in-memory cache — works on ALL browsers (no IndexedDB)
+// Writes are acknowledged instantly from cache, then synced to Firebase in background
+export const db = initializeFirestore(app, {
+  localCache: memoryLocalCache(),
+});
+
 
 
