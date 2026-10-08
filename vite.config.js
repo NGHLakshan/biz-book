@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         name: 'Anura Biz Book',
@@ -34,9 +34,14 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Skip waiting so new service worker activates immediately
+        skipWaiting: true,
+        clientsClaim: true,
         // Pre-cache all built assets
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-        // Cache Google Fonts at runtime
+        // Never cache Firebase API calls — always fetch live
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/api/, /\/[^/?]+\.[^/]+$/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

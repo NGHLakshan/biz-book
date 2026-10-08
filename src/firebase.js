@@ -1,6 +1,6 @@
 // Firebase App & Firestore (Modular SDK v9+)
 import { initializeApp } from "firebase/app";
-import { initializeFirestore, memoryLocalCache } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
@@ -14,10 +14,13 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// memoryLocalCache: fast in-memory cache — works on ALL browsers (no IndexedDB)
-// Writes are acknowledged instantly from cache, then synced to Firebase in background
+// persistentLocalCache: IndexedDB-backed offline persistence.
+// Data survives app close/refresh — loads instantly even without internet.
+// persistentMultipleTabManager allows multiple browser tabs to stay in sync.
 export const db = initializeFirestore(app, {
-  localCache: memoryLocalCache(),
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager(),
+  }),
 });
 
 // Initialize Firebase Authentication
