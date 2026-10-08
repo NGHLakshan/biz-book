@@ -67,16 +67,16 @@ export default function TransactionForm() {
 
     setIsSubmitting(true);
     
-    // Save in background to make UI feel instant
-    addTransaction(form).catch(err => {
+    try {
+      await addTransaction(form);
+      setForm({ ...getDefaultForm(categories.length > 0 ? categories[0].name : ""), date: form.date, time: form.time });
+      toast.success('Transaction saved successfully!');
+    } catch (err) {
       console.error("Failed to save transaction:", err);
       toast.error('Failed to sync. Check console.');
-    });
-
-    // Optimistic success update
-    setForm({ ...getDefaultForm(categories.length > 0 ? categories[0].name : ""), date: form.date, time: form.time });
-    toast.success('Transaction saved successfully!');
-    setIsSubmitting(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Derive dynamic suggestions from the live Firestore category doc
