@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { addTransaction } from "../services/transactions";
 import { subscribeToCategories } from "../services/categories";
-import { PlusCircle } from "lucide-react";
-import { motion } from "framer-motion";
+import { PlusCircle, ChevronDown, Check, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 
 const PAYMENT_METHODS = ["Cash", "Bank"];
@@ -23,6 +23,186 @@ const getDefaultForm = (defaultCategory = "") => {
   };
 };
 
+// â”€â”€â”€ Custom Combobox Dropdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function SubCategoryDropdown({ value, onChange, suggestions, disabled }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(value);
+  const containerRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // Sync query when value is cleared externally (form reset)
+  useEffect(() => {
+    setQuery(value);
+  }, [value]);
+
+  // Close on outside click / touch
+  useEffect(() => {
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, []);
+
+  const filtered = suggestions.filter((s) =>
+    s.toLowerCase().includes(query.toLowerCase())
+  );
+
+  const handleInputChange = (e) => {
+    const v = e.target.value;
+    setQuery(v);
+    onChange(v);
+    setOpen(true);
+  };
+
+  const handleSelect = useCallback((s) => {
+    setQuery(s);
+    onChange(s);
+    setOpen(false);
+    inputRef.current?.blur();
+  }, [onChange]);
+
+  const handleClear = () => {
+    setQuery("");
+    onChange("");
+    inputRef.current?.focus();
+    setOpen(true);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Escape") { setOpen(false); inputRef.current?.blur(); }
+    if (e.key === "Enter" && filtered.length === 1) { e.preventDefault(); handleSelect(filtered[0]); }
+  };
+
+  const showDropdown = open && suggestions.length > 0;
+
+  return (
+    <div ref={containerRef} className="relative">
+      {/* Input row */}
+      <div
+        className={`relative flex items-center rounded-xl border bg-slate-900/60 transition-all duration-200 ${
+          open
+            ? "border-emerald-500/60 ring-2 ring-emerald-500/20"
+            : "border-slate-700/60"
+        }`}
+      >
+        <input
+          ref={inputRef}
+          id="subCategory"
+          type="text"
+          value={query}
+          onChange={handleInputChange}
+          onFocus={() => setOpen(true)}
+          onKeyDown={handleKeyDown}
+          placeholder={suggestions.length === 0 ? "Type a custom sub-categoryâ€¦" : "Select or typeâ€¦"}
+          disabled={disabled}
+          autoComplete="off"
+          className="flex-1 bg-transparent text-white placeholder-slate-500 text-sm font-medium px-4 py-3.5 outline-none"
+        />
+
+        {/* Clear button */}
+        <AnimatePresence>
+          {query && (
+            <motion.button
+              type="button"
+              initial={{ opacity: 0, scale: 0.6 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.6 }}
+              transition={{ duration: 0.15 }}
+              onClick={handleClear}
+              className="p-1.5 mr-1 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700/50 transition-colors"
+            >
+              <X size={14} />
+            </motion.button>
+          )}
+        </AnimatePresence>
+
+        {/* Chevron toggle */}
+        {suggestions.length > 0 && (
+          <button
+            type="button"
+            onClick={() => { setOpen((p) => !p); inputRef.current?.focus(); }}
+            className="p-2 mr-1 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
+            tabIndex={-1}
+          >
+            <motion.div
+              animate={{ rotate: open ? 180 : 0 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+            >
+              <ChevronDown size={16} />
+            </motion.div>
+          </button>
+        )}
+      </div>
+
+      {/* Animated dropdown list */}
+      <AnimatePresence>
+        {showDropdown && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, scaleY: 0.94 }}
+            animate={{ opacity: 1, y: 0, scaleY: 1 }}
+            exit={{ opacity: 0, y: -6, scaleY: 0.94 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            style={{ originY: 0 }}
+            className="absolute z-50 left-0 right-0 mt-2 rounded-2xl border border-slate-700/60 bg-slate-900/95 backdrop-blur-xl shadow-2xl shadow-black/50 overflow-hidden"
+          >
+            <div
+              className="max-h-52 overflow-y-auto overscroll-contain"
+              style={{ scrollbarWidth: "thin", scrollbarColor: "#334155 transparent" }}
+            >
+              {filtered.length === 0 ? (
+                <div className="px-4 py-4 text-sm text-slate-500 text-center">
+                  No match â€” will save as custom entry
+                </div>
+              ) : (
+                filtered.map((s, i) => {
+                  const isSelected = s === value;
+                  return (
+                    <motion.button
+                      key={s}
+                      type="button"
+                      initial={{ opacity: 0, x: -6 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.035, duration: 0.18, ease: "easeOut" }}
+                      onClick={() => handleSelect(s)}
+                      className={`w-full flex items-center justify-between px-4 py-3.5 text-sm font-medium text-left transition-colors border-b border-slate-800/50 last:border-0 ${
+                        isSelected
+                          ? "text-emerald-400 bg-emerald-500/10"
+                          : "text-slate-200 hover:bg-slate-800/70 active:bg-slate-700/70"
+                      }`}
+                    >
+                      <span>{s}</span>
+                      <AnimatePresence>
+                        {isSelected && (
+                          <motion.span
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0, opacity: 0 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                          >
+                            <Check size={15} className="text-emerald-400" />
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </motion.button>
+                  );
+                })
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// â”€â”€â”€ Main Form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function TransactionForm() {
   const [form, setForm] = useState(() => getDefaultForm(""));
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,8 +234,7 @@ export default function TransactionForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validation
+
     if (!form.amount || isNaN(form.amount) || Number(form.amount) <= 0) {
       toast.error("Please enter a valid amount.");
       return;
@@ -66,7 +245,7 @@ export default function TransactionForm() {
     }
 
     setIsSubmitting(true);
-    
+
     try {
       await addTransaction(form);
       setForm({ ...getDefaultForm(categories.length > 0 ? categories[0].name : ""), date: form.date, time: form.time });
@@ -79,7 +258,6 @@ export default function TransactionForm() {
     }
   };
 
-  // Derive dynamic suggestions from the live Firestore category doc
   const activeCatDoc = categories.find(c => c.name === form.category);
   const suggestions = activeCatDoc
     ? (form.type === "Income"
@@ -131,7 +309,7 @@ export default function TransactionForm() {
             </div>
           </div>
 
-          {/* Type — Premium Radio toggle */}
+          {/* Type toggle */}
           <div className="form-group">
             <label className="form-label">Transaction Type</label>
             <div className="flex gap-3 bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800">
@@ -154,17 +332,17 @@ export default function TransactionForm() {
                       className="hidden"
                     />
                     {isSelected && (
-                      <motion.div 
+                      <motion.div
                         layoutId="type-pill"
                         className={`absolute inset-0 rounded-xl -z-10 ${
-                          t === "Income" 
-                            ? "bg-gradient-to-r from-emerald-600 to-emerald-500 glow-emerald" 
+                          t === "Income"
+                            ? "bg-gradient-to-r from-emerald-600 to-emerald-500 glow-emerald"
                             : "bg-gradient-to-r from-red-600 to-red-500 glow-red"
                         }`}
                         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                       />
                     )}
-                    <span>{t === "Income" ? "↑" : "↓"}</span>
+                    <span>{t === "Income" ? "â†‘" : "â†“"}</span>
                     {t}
                   </label>
                 );
@@ -207,34 +385,25 @@ export default function TransactionForm() {
                 className="form-input"
               >
                 {PAYMENT_METHODS.map((m) => (
-                  <option key={m} value={m}>{m === "Cash" ? "💵 Cash" : "🏦 Bank"}</option>
+                  <option key={m} value={m}>{m === "Cash" ? "ðŸ’µ Cash" : "ðŸ¦ Bank"}</option>
                 ))}
               </select>
             </div>
           </div>
 
-          {/* Sub Category */}
+          {/* Sub Category â€” Custom animated dropdown */}
           <div className="form-group">
             <label htmlFor="subCategory" className="form-label">Sub Category</label>
-            <input
-              id="subCategory"
-              list="subcat-suggestions"
-              name="subCategory"
+            <SubCategoryDropdown
               value={form.subCategory}
-              onChange={handleChange}
-              placeholder={noSuggestions ? "Type a custom sub-category…" : "Select or type…"}
-              className="form-input"
-              autoComplete="off"
+              onChange={(v) => setForm((prev) => ({ ...prev, subCategory: v }))}
+              suggestions={suggestions}
+              disabled={loadingCategories}
             />
-            <datalist id="subcat-suggestions">
-              {suggestions.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
             {noSuggestions && !loadingCategories && form.category && (
               <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1">
-                <span className="text-amber-400">⚡</span>
-                No types configured yet — you can type freely or{" "}
+                <span className="text-amber-400">âš¡</span>
+                No types configured yet â€” you can type freely or{" "}
                 <span className="text-emerald-400 font-medium">add types in Settings</span>.
               </p>
             )}
@@ -272,7 +441,7 @@ export default function TransactionForm() {
               value={form.description}
               onChange={handleChange}
               rows={2}
-              placeholder="Additional notes…"
+              placeholder="Additional notesâ€¦"
               className="form-input resize-none"
             />
           </div>
