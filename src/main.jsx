@@ -2,6 +2,10 @@ import { StrictMode, Component } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+import { registerSW } from 'virtual:pwa-register'
+
+// Automatically check and activate updates immediately
+registerSW({ immediate: true })
 
 // Error Boundary to catch crashes and show a helpful message instead of blank screen
 class ErrorBoundary extends Component {
