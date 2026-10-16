@@ -28,7 +28,6 @@ export default function TransactionForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
-  const [isCustomSubCategory, setIsCustomSubCategory] = useState(false);
 
   useEffect(() => {
     const unsub = subscribeToCategories((data) => {
@@ -51,20 +50,9 @@ export default function TransactionForm() {
       // When category or type changes, reset sub-category so types match
       if (name === "category" || name === "type") {
         updated.subCategory = "";
-        setIsCustomSubCategory(false);
       }
       return updated;
     });
-  };
-
-  const handleSubCategorySelect = (e) => {
-    const val = e.target.value;
-    if (val === "__custom__") {
-      setIsCustomSubCategory(true);
-      setForm((prev) => ({ ...prev, subCategory: "" }));
-    } else {
-      setForm((prev) => ({ ...prev, subCategory: val }));
-    }
   };
 
   const handleSubmit = async (e) => {
@@ -75,7 +63,7 @@ export default function TransactionForm() {
       return;
     }
     if (!form.subCategory.trim()) {
-      toast.error("Please select or enter a Sub Category.");
+      toast.error("Please select a Sub Category.");
       return;
     }
 
@@ -84,7 +72,6 @@ export default function TransactionForm() {
     try {
       await addTransaction(form);
       setForm({ ...getDefaultForm(categories.length > 0 ? categories[0].name : ""), date: form.date, time: form.time });
-      setIsCustomSubCategory(false);
       toast.success('Transaction saved successfully!');
     } catch (err) {
       console.error("Failed to save transaction:", err);
@@ -227,45 +214,18 @@ export default function TransactionForm() {
             </div>
           </div>
 
-          {/* Sub Category — Dropdown list of configured income/expense types */}
+          {/* Sub Category — Pure dropdown list of configured types */}
           <div className="form-group">
-            <div className="flex items-center justify-between mb-1.5">
-              <label htmlFor="subCategory" className="form-label mb-0">
-                Sub Category
-              </label>
-              {hasSuggestions && (
-                isCustomSubCategory ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsCustomSubCategory(false);
-                      setForm((prev) => ({ ...prev, subCategory: "" }));
-                    }}
-                    className="text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
-                  >
-                    ← Select from list
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsCustomSubCategory(true);
-                      setForm((prev) => ({ ...prev, subCategory: "" }));
-                    }}
-                    className="text-xs text-slate-400 hover:text-emerald-400 transition-colors"
-                  >
-                    + Type new
-                  </button>
-                )
-              )}
-            </div>
+            <label htmlFor="subCategory" className="form-label">
+              Sub Category
+            </label>
 
-            {hasSuggestions && !isCustomSubCategory ? (
+            {hasSuggestions ? (
               <select
                 id="subCategory"
                 name="subCategory"
                 value={form.subCategory}
-                onChange={handleSubCategorySelect}
+                onChange={handleChange}
                 className="form-input"
                 required
               >
@@ -275,7 +235,6 @@ export default function TransactionForm() {
                     {item}
                   </option>
                 ))}
-                <option value="__custom__">✏️ Other (Type manually)...</option>
               </select>
             ) : (
               <>
@@ -285,9 +244,8 @@ export default function TransactionForm() {
                   name="subCategory"
                   value={form.subCategory}
                   onChange={handleChange}
-                  placeholder={hasSuggestions ? "Type custom sub category..." : "Type sub category..."}
+                  placeholder="Type sub category..."
                   className="form-input"
-                  autoFocus={isCustomSubCategory}
                   required
                 />
                 {!hasSuggestions && !loadingCategories && form.category && (
