@@ -45,6 +45,20 @@ export default function App() {
     return unsub;
   }, [user]);
 
+  // PIN Lock must be checked FIRST — before auth — so the user always
+  // sees the PIN screen when the app is reopened after being killed.
+  if (isLocked) {
+    return (
+      <>
+        <Toaster position="top-center" toastOptions={{ style: { background: '#1e293b', color: '#fff', borderRadius: '16px', border: '1px solid #334155' } }} />
+        <PinLock
+          mode="verify"
+          onSuccess={() => setIsLocked(false)}
+        />
+      </>
+    );
+  }
+
   if (authChecking) {
     return (
       <div className="h-[100dvh] w-screen bg-slate-950 flex flex-col items-center justify-center">
@@ -194,16 +208,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* PIN Lock Screen on startup or when locked */}
-      <AnimatePresence>
-        {isLocked && (
-          <PinLock
-            key="app-lock"
-            mode="verify"
-            onSuccess={() => setIsLocked(false)}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }
