@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { addTransaction } from "../services/transactions";
 import { subscribeToCategories } from "../services/categories";
 import { PlusCircle, ChevronDown, Check, X } from "lucide-react";
@@ -23,7 +23,7 @@ const getDefaultForm = (defaultCategory = "") => {
   };
 };
 
-// â”€â”€â”€ Custom Combobox Dropdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Custom Combobox Dropdown ------------------------------------------------
 function SubCategoryDropdown({ value, onChange, suggestions, disabled }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value);
@@ -100,7 +100,7 @@ function SubCategoryDropdown({ value, onChange, suggestions, disabled }) {
           onChange={handleInputChange}
           onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder={suggestions.length === 0 ? "Type a custom sub-categoryâ€¦" : "Select or typeâ€¦"}
+          placeholder={suggestions.length === 0 ? "Type a custom sub-category..." : "Select or type..."}
           disabled={disabled}
           autoComplete="off"
           className="flex-1 bg-transparent text-white placeholder-slate-500 text-sm font-medium px-4 py-3.5 outline-none"
@@ -158,7 +158,7 @@ function SubCategoryDropdown({ value, onChange, suggestions, disabled }) {
             >
               {filtered.length === 0 ? (
                 <div className="px-4 py-4 text-sm text-slate-500 text-center">
-                  No match â€” will save as custom entry
+                  No match — will save as custom entry
                 </div>
               ) : (
                 filtered.map((s, i) => {
@@ -202,7 +202,7 @@ function SubCategoryDropdown({ value, onChange, suggestions, disabled }) {
   );
 }
 
-// â”€â”€â”€ Main Form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Main Form ---------------------------------------------------------------
 export default function TransactionForm() {
   const [form, setForm] = useState(() => getDefaultForm(""));
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -342,7 +342,7 @@ export default function TransactionForm() {
                         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                       />
                     )}
-                    <span>{t === "Income" ? "â†‘" : "â†“"}</span>
+                    <span>{t === "Income" ? "\u2191" : "\u2193"}</span>
                     {t}
                   </label>
                 );
@@ -385,13 +385,13 @@ export default function TransactionForm() {
                 className="form-input"
               >
                 {PAYMENT_METHODS.map((m) => (
-                  <option key={m} value={m}>{m === "Cash" ? "ðŸ’µ Cash" : "ðŸ¦ Bank"}</option>
+                  <option key={m} value={m}>{m === "Cash" ? "\ud83d\udcb5 Cash" : "\ud83c\udfe6 Bank"}</option>
                 ))}
               </select>
             </div>
           </div>
 
-          {/* Sub Category â€” Custom animated dropdown */}
+          {/* Sub Category — Custom animated dropdown */}
           <div className="form-group">
             <label htmlFor="subCategory" className="form-label">Sub Category</label>
             <SubCategoryDropdown
@@ -402,8 +402,8 @@ export default function TransactionForm() {
             />
             {noSuggestions && !loadingCategories && form.category && (
               <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1">
-                <span className="text-amber-400">âš¡</span>
-                No types configured yet â€” you can type freely or{" "}
+                <span className="text-amber-400">{"\u26a1"}</span>
+                No types configured yet — you can type freely or{" "}
                 <span className="text-emerald-400 font-medium">add types in Settings</span>.
               </p>
             )}
@@ -441,7 +441,7 @@ export default function TransactionForm() {
               value={form.description}
               onChange={handleChange}
               rows={2}
-              placeholder="Additional notesâ€¦"
+              placeholder="Additional notes..."
               className="form-input resize-none"
             />
           </div>
