@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { addTransaction } from "../services/transactions";
 import { subscribeToCategories } from "../services/categories";
-import { PlusCircle, ChevronDown, Check, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { PlusCircle } from "lucide-react";
+import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 
 const PAYMENT_METHODS = ["Cash", "Bank"];
@@ -23,191 +23,12 @@ const getDefaultForm = (defaultCategory = "") => {
   };
 };
 
-// --- Custom Combobox Dropdown ------------------------------------------------
-function SubCategoryDropdown({ value, onChange, suggestions, disabled }) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState(value);
-  const containerRef = useRef(null);
-  const inputRef = useRef(null);
-
-  // Sync query when value is cleared externally (form reset)
-  useEffect(() => {
-    setQuery(value);
-  }, [value]);
-
-  // Close on outside click / touch
-  useEffect(() => {
-    const handler = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    document.addEventListener("touchstart", handler);
-    return () => {
-      document.removeEventListener("mousedown", handler);
-      document.removeEventListener("touchstart", handler);
-    };
-  }, []);
-
-  const filtered = suggestions.filter((s) =>
-    s.toLowerCase().includes(query.toLowerCase())
-  );
-
-  const handleInputChange = (e) => {
-    const v = e.target.value;
-    setQuery(v);
-    onChange(v);
-    setOpen(true);
-  };
-
-  const handleSelect = useCallback((s) => {
-    setQuery(s);
-    onChange(s);
-    setOpen(false);
-    inputRef.current?.blur();
-  }, [onChange]);
-
-  const handleClear = () => {
-    setQuery("");
-    onChange("");
-    inputRef.current?.focus();
-    setOpen(true);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Escape") { setOpen(false); inputRef.current?.blur(); }
-    if (e.key === "Enter" && filtered.length === 1) { e.preventDefault(); handleSelect(filtered[0]); }
-  };
-
-  const showDropdown = open && suggestions.length > 0;
-
-  return (
-    <div ref={containerRef} className="relative">
-      {/* Input row */}
-      <div
-        className={`relative flex items-center rounded-xl border bg-slate-900/60 transition-all duration-200 ${
-          open
-            ? "border-emerald-500/60 ring-2 ring-emerald-500/20"
-            : "border-slate-700/60"
-        }`}
-      >
-        <input
-          ref={inputRef}
-          id="subCategory"
-          type="text"
-          value={query}
-          onChange={handleInputChange}
-          onFocus={() => setOpen(true)}
-          onKeyDown={handleKeyDown}
-          placeholder={suggestions.length === 0 ? "Type a custom sub-category..." : "Select or type..."}
-          disabled={disabled}
-          autoComplete="off"
-          className="flex-1 bg-transparent text-white placeholder-slate-500 text-sm font-medium px-4 py-3.5 outline-none"
-        />
-
-        {/* Clear button */}
-        <AnimatePresence>
-          {query && (
-            <motion.button
-              type="button"
-              initial={{ opacity: 0, scale: 0.6 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.6 }}
-              transition={{ duration: 0.15 }}
-              onClick={handleClear}
-              className="p-1.5 mr-1 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700/50 transition-colors"
-            >
-              <X size={14} />
-            </motion.button>
-          )}
-        </AnimatePresence>
-
-        {/* Chevron toggle */}
-        {suggestions.length > 0 && (
-          <button
-            type="button"
-            onClick={() => { setOpen((p) => !p); inputRef.current?.focus(); }}
-            className="p-2 mr-1 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
-            tabIndex={-1}
-          >
-            <motion.div
-              animate={{ rotate: open ? 180 : 0 }}
-              transition={{ duration: 0.25, ease: "easeInOut" }}
-            >
-              <ChevronDown size={16} />
-            </motion.div>
-          </button>
-        )}
-      </div>
-
-      {/* Animated dropdown list */}
-      <AnimatePresence>
-        {showDropdown && (
-          <motion.div
-            initial={{ opacity: 0, y: -6, scaleY: 0.94 }}
-            animate={{ opacity: 1, y: 0, scaleY: 1 }}
-            exit={{ opacity: 0, y: -6, scaleY: 0.94 }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            style={{ originY: 0 }}
-            className="absolute z-50 left-0 right-0 mt-2 rounded-2xl border border-slate-700/60 bg-slate-900/95 backdrop-blur-xl shadow-2xl shadow-black/50 overflow-hidden"
-          >
-            <div
-              className="max-h-52 overflow-y-auto overscroll-contain"
-              style={{ scrollbarWidth: "thin", scrollbarColor: "#334155 transparent" }}
-            >
-              {filtered.length === 0 ? (
-                <div className="px-4 py-4 text-sm text-slate-500 text-center">
-                  No match — will save as custom entry
-                </div>
-              ) : (
-                filtered.map((s, i) => {
-                  const isSelected = s === value;
-                  return (
-                    <motion.button
-                      key={s}
-                      type="button"
-                      initial={{ opacity: 0, x: -6 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.035, duration: 0.18, ease: "easeOut" }}
-                      onClick={() => handleSelect(s)}
-                      className={`w-full flex items-center justify-between px-4 py-3.5 text-sm font-medium text-left transition-colors border-b border-slate-800/50 last:border-0 ${
-                        isSelected
-                          ? "text-emerald-400 bg-emerald-500/10"
-                          : "text-slate-200 hover:bg-slate-800/70 active:bg-slate-700/70"
-                      }`}
-                    >
-                      <span>{s}</span>
-                      <AnimatePresence>
-                        {isSelected && (
-                          <motion.span
-                            initial={{ scale: 0, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0, opacity: 0 }}
-                            transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                          >
-                            <Check size={15} className="text-emerald-400" />
-                          </motion.span>
-                        )}
-                      </AnimatePresence>
-                    </motion.button>
-                  );
-                })
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-// --- Main Form ---------------------------------------------------------------
 export default function TransactionForm() {
   const [form, setForm] = useState(() => getDefaultForm(""));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [isCustomSubCategory, setIsCustomSubCategory] = useState(false);
 
   useEffect(() => {
     const unsub = subscribeToCategories((data) => {
@@ -225,11 +46,25 @@ export default function TransactionForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-      ...(name === "category" ? { subCategory: "" } : {}),
-    }));
+    setForm((prev) => {
+      const updated = { ...prev, [name]: value };
+      // When category or type changes, reset sub-category so types match
+      if (name === "category" || name === "type") {
+        updated.subCategory = "";
+        setIsCustomSubCategory(false);
+      }
+      return updated;
+    });
+  };
+
+  const handleSubCategorySelect = (e) => {
+    const val = e.target.value;
+    if (val === "__custom__") {
+      setIsCustomSubCategory(true);
+      setForm((prev) => ({ ...prev, subCategory: "" }));
+    } else {
+      setForm((prev) => ({ ...prev, subCategory: val }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -240,7 +75,7 @@ export default function TransactionForm() {
       return;
     }
     if (!form.subCategory.trim()) {
-      toast.error("Sub Category is required.");
+      toast.error("Please select or enter a Sub Category.");
       return;
     }
 
@@ -249,6 +84,7 @@ export default function TransactionForm() {
     try {
       await addTransaction(form);
       setForm({ ...getDefaultForm(categories.length > 0 ? categories[0].name : ""), date: form.date, time: form.time });
+      setIsCustomSubCategory(false);
       toast.success('Transaction saved successfully!');
     } catch (err) {
       console.error("Failed to save transaction:", err);
@@ -258,14 +94,14 @@ export default function TransactionForm() {
     }
   };
 
-  const activeCatDoc = categories.find(c => c.name === form.category);
+  const activeCatDoc = categories.find((c) => c.name === form.category);
   const suggestions = activeCatDoc
     ? (form.type === "Income"
         ? (activeCatDoc.incomeTypes || [])
         : (activeCatDoc.expenseTypes || []))
     : [];
 
-  const noSuggestions = suggestions.length === 0;
+  const hasSuggestions = suggestions.length > 0;
 
   return (
     <div className="max-w-lg mx-auto px-4 py-8">
@@ -385,27 +221,83 @@ export default function TransactionForm() {
                 className="form-input"
               >
                 {PAYMENT_METHODS.map((m) => (
-                  <option key={m} value={m}>{m === "Cash" ? "\ud83d\udcb5 Cash" : "\ud83c\udfe6 Bank"}</option>
+                  <option key={m} value={m}>{m === "Cash" ? "💵 Cash" : "🏦 Bank"}</option>
                 ))}
               </select>
             </div>
           </div>
 
-          {/* Sub Category — Custom animated dropdown */}
+          {/* Sub Category — Dropdown list of configured income/expense types */}
           <div className="form-group">
-            <label htmlFor="subCategory" className="form-label">Sub Category</label>
-            <SubCategoryDropdown
-              value={form.subCategory}
-              onChange={(v) => setForm((prev) => ({ ...prev, subCategory: v }))}
-              suggestions={suggestions}
-              disabled={loadingCategories}
-            />
-            {noSuggestions && !loadingCategories && form.category && (
-              <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1">
-                <span className="text-amber-400">{"\u26a1"}</span>
-                No types configured yet — you can type freely or{" "}
-                <span className="text-emerald-400 font-medium">add types in Settings</span>.
-              </p>
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="subCategory" className="form-label mb-0">
+                Sub Category
+              </label>
+              {hasSuggestions && (
+                isCustomSubCategory ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomSubCategory(false);
+                      setForm((prev) => ({ ...prev, subCategory: "" }));
+                    }}
+                    className="text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+                  >
+                    ← Select from list
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomSubCategory(true);
+                      setForm((prev) => ({ ...prev, subCategory: "" }));
+                    }}
+                    className="text-xs text-slate-400 hover:text-emerald-400 transition-colors"
+                  >
+                    + Type new
+                  </button>
+                )
+              )}
+            </div>
+
+            {hasSuggestions && !isCustomSubCategory ? (
+              <select
+                id="subCategory"
+                name="subCategory"
+                value={form.subCategory}
+                onChange={handleSubCategorySelect}
+                className="form-input"
+                required
+              >
+                <option value="">-- Select Sub Category --</option>
+                {suggestions.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+                <option value="__custom__">✏️ Other (Type manually)...</option>
+              </select>
+            ) : (
+              <>
+                <input
+                  id="subCategory"
+                  type="text"
+                  name="subCategory"
+                  value={form.subCategory}
+                  onChange={handleChange}
+                  placeholder={hasSuggestions ? "Type custom sub category..." : "Type sub category..."}
+                  className="form-input"
+                  autoFocus={isCustomSubCategory}
+                  required
+                />
+                {!hasSuggestions && !loadingCategories && form.category && (
+                  <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1">
+                    <span className="text-amber-400">⚡</span>
+                    No {form.type.toLowerCase()} types configured for {form.category} yet — you can type freely or{" "}
+                    <span className="text-emerald-400 font-medium">add types in Settings</span>.
+                  </p>
+                )}
+              </>
             )}
           </div>
 
