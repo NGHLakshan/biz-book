@@ -94,9 +94,9 @@ const itemVariants = {
   show: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
 
-export default function Dashboard({ onNewEntry }) {
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function Dashboard({ onNewEntry, initialTransactions = [] }) {
+  const [transactions, setTransactions] = useState(initialTransactions);
+  const [loading, setLoading] = useState(() => initialTransactions.length === 0);
   const [selectedMonth, setSelectedMonth] = useState(() => toMonthKey(new Date()));
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [categories, setCategories] = useState([]);
@@ -118,6 +118,14 @@ export default function Dashboard({ onNewEntry }) {
 
   // No scroll refs needed — each modal uses a separate inner overflow-y-auto div
   // that is always a fresh DOM element, so scrollTop is always 0 on open.
+
+  // Sync initialTransactions from parent when available
+  useEffect(() => {
+    if (initialTransactions.length > 0 && transactions.length === 0) {
+      setTransactions(initialTransactions);
+      setLoading(false);
+    }
+  }, [initialTransactions]);
 
   useEffect(() => {
     const unsubTx = subscribeToTransactions((data) => {

@@ -35,6 +35,16 @@ export default function App() {
       setAuthChecking(false);
     });
 
+    // authStateReady resolves fast from local IndexedDB without waiting for slow network token refresh
+    if (typeof auth.authStateReady === "function") {
+      auth.authStateReady().then(() => {
+        if (auth.currentUser) {
+          setUser(auth.currentUser);
+        }
+        setAuthChecking(false);
+      });
+    }
+
     return unsubscribeAuth;
   }, []);
 
@@ -162,7 +172,10 @@ export default function App() {
               ) : tab === "summary" ? (
                 <SummaryView transactions={transactions} />
               ) : (
-                <Dashboard onNewEntry={() => setTab("form")} />
+                <Dashboard 
+                  onNewEntry={() => setTab("form")} 
+                  initialTransactions={transactions}
+                />
               )}
             </div>
           </motion.div>
