@@ -180,13 +180,7 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
   const stepIndicator = getStepIndicator();
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0, scale: 0.98 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
-      className="fixed inset-0 z-[100] bg-slate-950 overflow-y-auto"
-    >
+    <div className="fixed inset-0 z-[100] bg-slate-950 overflow-y-auto">
       <div className="min-h-full flex flex-col items-center justify-center px-6 py-8 pb-32">
 
         {/* Close button (not for verify mode) */}
@@ -253,6 +247,6 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
           </motion.button>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

@@ -20,11 +20,7 @@ export default function Login({ onLoginSuccess }) {
 
     setLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      localStorage.setItem("is_authenticated", "true");
-      if (userCredential.user?.email) {
-        localStorage.setItem("cached_user_email", userCredential.user.email);
-      }
+      await signInWithEmailAndPassword(auth, email, password);
       toast.success("Welcome back!");
       if (onLoginSuccess) onLoginSuccess();
     } catch (error) {

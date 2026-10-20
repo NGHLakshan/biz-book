@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
-import { subscribeToTransactions, getCachedTransactions } from "../services/transactions";
-import { subscribeToCategories, getCachedCategories, addCategory, updateCategory, deleteCategory } from "../services/categories";
+import { subscribeToTransactions } from "../services/transactions";
+import { subscribeToCategories, addCategory, updateCategory, deleteCategory } from "../services/categories";
 import { TrendingUp, TrendingDown, Wallet, Calendar, Filter, PlusCircle, Building2, X, Settings2, Check, Trash2, ChevronRight, ArrowLeft, Layers, Pencil, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from "recharts";
@@ -94,14 +94,12 @@ const itemVariants = {
   show: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
 
-export default function Dashboard({ onNewEntry, transactions: propTransactions, categories: propCategories }) {
-  const [internalTransactions, setInternalTransactions] = useState(() => getCachedTransactions());
-  const [internalCategories, setInternalCategories] = useState(() => getCachedCategories());
-  const transactions = propTransactions !== undefined ? propTransactions : internalTransactions;
-  const categories = propCategories !== undefined ? propCategories : internalCategories;
-  const [loading, setLoading] = useState(() => transactions.length === 0);
+export default function Dashboard({ onNewEntry }) {
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(() => toMonthKey(new Date()));
   const [categoryFilter, setCategoryFilter] = useState("All");
+  const [categories, setCategories] = useState([]);
   const [selectedMethod, setSelectedMethod] = useState(null);
   const [managingCategory, setManagingCategory] = useState(null);
   const [expandedCatId, setExpandedCatId] = useState(null);
@@ -122,22 +120,18 @@ export default function Dashboard({ onNewEntry, transactions: propTransactions, 
   // that is always a fresh DOM element, so scrollTop is always 0 on open.
 
   useEffect(() => {
-    if (propTransactions !== undefined) {
-      setLoading(false);
-      return;
-    }
     const unsubTx = subscribeToTransactions((data) => {
-      setInternalTransactions(data);
+      setTransactions(data);
       setLoading(false);
     });
     const unsubCat = subscribeToCategories((data) => {
-      setInternalCategories(data);
+      setCategories(data);
     });
     return () => {
       unsubTx();
       unsubCat();
     };
-  }, [propTransactions]);
+  }, []);
 
   // Push a history state whenever a modal opens, so the back button closes it
   useEffect(() => {

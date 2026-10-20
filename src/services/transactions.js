@@ -13,25 +13,6 @@ import { db } from "../firebase";
 import toast from "react-hot-toast";
 
 const COLLECTION = "transactions";
-const CACHE_KEY = "anura_cached_transactions";
-
-/**
- * Get previously cached transactions from localStorage for instant display.
- */
-export const getCachedTransactions = () => {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return parsed.map((item) => ({
-      ...item,
-      date: item.date ? new Date(item.date) : new Date(),
-    }));
-  } catch (err) {
-    console.warn("Failed to read cached transactions:", err);
-    return [];
-  }
-};
 
 /**
  * Add a new transaction document to Firestore.
@@ -107,11 +88,6 @@ export const subscribeToTransactions = (callback) => {
         amount: Number(data.amount),
       };
     });
-    try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify(transactions));
-    } catch (e) {
-      // ignore storage quota error
-    }
     callback(transactions);
   }, (error) => {
     console.error("Firebase transaction sync error:", error);
