@@ -12,6 +12,21 @@ import {
 import { db } from "../firebase";
 
 const COLLECTION = "categories";
+const CACHE_KEY = "anura_cached_categories";
+
+/**
+ * Get previously cached categories from localStorage for instant display.
+ */
+export const getCachedCategories = () => {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn("Failed to read cached categories:", err);
+    return [];
+  }
+};
 
 /**
  * Add a new category document to Firestore.
@@ -91,6 +106,11 @@ export const subscribeToCategories = (callback) => {
         ...data,
       };
     });
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(categories));
+    } catch (e) {
+      // ignore
+    }
     callback(categories);
   });
 };

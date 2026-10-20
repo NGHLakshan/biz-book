@@ -12,7 +12,8 @@ import PinLock from "./components/PinLock";
 import SummaryView from "./components/SummaryView";
 import Logo from "./components/Logo";
 import Login from "./components/Login";
-import { subscribeToTransactions } from "./services/transactions";
+import { subscribeToTransactions, getCachedTransactions } from "./services/transactions";
+import { subscribeToCategories, getCachedCategories } from "./services/categories";
 
 const TABS = [
   { id: "dashboard", label: "Dashboard",  Icon: LayoutDashboard },
@@ -24,67 +25,50 @@ const TABS = [
 export default function App() {
   const [tab, setTab] = useState("dashboard");
   const [isLocked, setIsLocked] = useState(() => !!localStorage.getItem("app_pin"));
-  const [transactions, setTransactions] = useState([]);
-  const [user, setUser] = useState(null);
-  const [authChecking, setAuthChecking] = useState(true);
+  const [transactions, setTransactions] = useState(() => getCachedTransactions());
+  const [categories, setCategories] = useState(() => getCachedCategories());
+  const [user, setUser] = useState(() => {
+    return (
+      auth.currentUser ||
+      (localStorage.getItem("is_authenticated") === "true"
+        ? { email: localStorage.getItem("cached_user_email") || "user" }
+        : null)
+    );
+  });
+  const [authChecking, setAuthChecking] = useState(() => {
+    return !localStorage.getItem("is_authenticated");
+  });
 
   useEffect(() => {
-    // Listen for authentication state changes
+    // Listen for authentication state changes in background
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setAuthChecking(false);
+      if (currentUser) {
+        localStorage.setItem("is_authenticated", "true");
+        if (currentUser.email) localStorage.setItem("cached_user_email", currentUser.email);
+      } else {
+        localStorage.removeItem("is_authenticated");
+        localStorage.removeItem("cached_user_email");
+      }
     });
 
     return unsubscribeAuth;
   }, []);
 
-  // Only subscribe to data when user is authenticated
+  // Preload and subscribe to data when user is authenticated (runs in background even if PIN locked)
   useEffect(() => {
     if (!user) return;
-    const unsub = subscribeToTransactions((data) => setTransactions(data));
-    return unsub;
+    const unsubTx = subscribeToTransactions((data) => setTransactions(data));
+    const unsubCat = subscribeToCategories((data) => setCategories(data));
+    return () => {
+      unsubTx();
+      unsubCat();
+    };
   }, [user]);
 
-  // PIN Lock must be checked FIRST — before auth — so the user always
-  // sees the PIN screen when the app is reopened after being killed.
-  if (isLocked) {
-    return (
-      <>
-        <Toaster position="top-center" toastOptions={{ style: { background: '#1e293b', color: '#fff', borderRadius: '16px', border: '1px solid #334155' } }} />
-        <PinLock
-          mode="verify"
-          onSuccess={() => setIsLocked(false)}
-        />
-      </>
-    );
-  }
-
-  if (authChecking) {
-    return (
-      <div className="h-[100dvh] w-screen bg-slate-950 flex flex-col items-center justify-center">
-        <Logo size="lg" className="animate-pulse mb-6 opacity-50" />
-        <div className="w-8 h-8 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  // Show Login screen if not authenticated
-  if (!user) {
-    return (
-      <>
-        <Toaster position="top-center" toastOptions={{ style: { background: '#1e293b', color: '#fff', borderRadius: '16px', border: '1px solid #334155' } }} />
-        <Login />
-      </>
-    );
-  }
-
   return (
-    <div className="h-[100dvh] w-screen bg-slate-950 flex flex-col overflow-hidden relative">
-      {/* Background ambient light */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-sky-500/10 rounded-full blur-[120px] pointer-events-none" />
-
-      {/* Toaster for premium notifications */}
+    <>
       <Toaster 
         position="top-center" 
         toastOptions={{
@@ -110,67 +94,96 @@ export default function App() {
         }}
       />
 
-      {/* Header */}
-      <header className="sticky top-0 z-40 glass-panel px-4 py-3 border-b border-slate-800/50">
-        <div className="max-w-lg mx-auto flex items-center gap-3">
-          <Logo size="md" />
-          <div className="flex-1">
-            <h1 className="font-bold text-base leading-none tracking-tight gradient-text from-emerald-400 to-sky-400 pb-1">
-              Anura Biz Book
-            </h1>
-            <p className="text-slate-400 text-xs font-medium">Income &amp; Expense Tracker</p>
-          </div>
-          {/* Online indicator */}
-          <div id="connection-indicator" className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800/50 border border-slate-700/50">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse glow-emerald" />
-            <span className="text-xs text-slate-400 hidden sm:inline font-medium">Online</span>
-          </div>
+      {/* PIN Lock Screen: rendered as an immediate top-level overlay so it appears instantly without waiting for network/auth, while allowing the dashboard and data to preload underneath */}
+      <AnimatePresence>
+        {isLocked && (
+          <PinLock
+            key="app-lock"
+            mode="verify"
+            onSuccess={() => setIsLocked(false)}
+          />
+        )}
+      </AnimatePresence>
 
-          {/* Quick Lock Button if PIN is set */}
-          {localStorage.getItem("app_pin") && (
-            <button
-              onClick={() => setIsLocked(true)}
-              className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-800/50 hover:bg-slate-700/70 border border-slate-700/50 text-slate-400 hover:text-emerald-400 transition-all"
-              title="Lock App"
-            >
-              <Lock size={14} />
-            </button>
-          )}
+      {/* Main App Content or Login / Loading */}
+      {authChecking ? (
+        <div className="h-[100dvh] w-screen bg-slate-950 flex flex-col items-center justify-center">
+          <Logo size="lg" className="animate-pulse mb-6 opacity-50" />
+          <div className="w-8 h-8 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
         </div>
-      </header>
+      ) : !user ? (
+        <Login onLoginSuccess={() => setIsLocked(false)} />
+      ) : (
+        <div className="h-[100dvh] w-screen bg-slate-950 flex flex-col overflow-hidden relative">
+          {/* Background ambient light */}
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-sky-500/10 rounded-full blur-[120px] pointer-events-none" />
 
-      {/* Offline Banner */}
-      <OfflineBanner />
+          {/* Header */}
+          <header className="sticky top-0 z-40 glass-panel px-4 py-3 border-b border-slate-800/50">
+            <div className="max-w-lg mx-auto flex items-center gap-3">
+              <Logo size="md" />
+              <div className="flex-1">
+                <h1 className="font-bold text-base leading-none tracking-tight gradient-text from-emerald-400 to-sky-400 pb-1">
+                  Anura Biz Book
+                </h1>
+                <p className="text-slate-400 text-xs font-medium">Income &amp; Expense Tracker</p>
+              </div>
+              {/* Online indicator */}
+              <div id="connection-indicator" className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800/50 border border-slate-700/50">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse glow-emerald" />
+                <span className="text-xs text-slate-400 hidden sm:inline font-medium">Online</span>
+              </div>
 
-      {/* Main Content with Page Transitions */}
-      {/* Each motion.div gets key={tab} → fresh DOM element → scrollTop always 0 */}
-      <main className="flex-1 overflow-hidden relative z-10">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={tab}
-            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            className="h-full w-full"
-          >
-            <div className="h-full w-full overflow-y-auto pb-24" id="main-scroller">
-              {tab === "form" ? (
-                <TransactionForm />
-              ) : tab === "settings" ? (
-                <Settings transactions={transactions} />
-              ) : tab === "summary" ? (
-                <SummaryView transactions={transactions} />
-              ) : (
-                <Dashboard onNewEntry={() => setTab("form")} />
+              {/* Quick Lock Button if PIN is set */}
+              {localStorage.getItem("app_pin") && (
+                <button
+                  onClick={() => setIsLocked(true)}
+                  className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-800/50 hover:bg-slate-700/70 border border-slate-700/50 text-slate-400 hover:text-emerald-400 transition-all"
+                  title="Lock App"
+                >
+                  <Lock size={14} />
+                </button>
               )}
             </div>
-          </motion.div>
-        </AnimatePresence>
-      </main>
+          </header>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 glass-panel border-t border-slate-800/50 pb-safe">
+          {/* Offline Banner */}
+          <OfflineBanner />
+
+          {/* Main Content with Page Transitions */}
+          {/* Each motion.div gets key={tab} → fresh DOM element → scrollTop always 0 */}
+          <main className="flex-1 overflow-hidden relative z-10">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={tab}
+                initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="h-full w-full"
+              >
+                <div className="h-full w-full overflow-y-auto pb-24" id="main-scroller">
+                  {tab === "form" ? (
+                    <TransactionForm />
+                  ) : tab === "settings" ? (
+                    <Settings transactions={transactions} />
+                  ) : tab === "summary" ? (
+                    <SummaryView transactions={transactions} />
+                  ) : (
+                    <Dashboard 
+                      onNewEntry={() => setTab("form")} 
+                      transactions={transactions} 
+                      categories={categories} 
+                    />
+                  )}
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          </main>
+
+          {/* Bottom Navigation */}
+          <nav className="fixed bottom-0 left-0 right-0 z-40 glass-panel border-t border-slate-800/50 pb-safe">
         <div className="max-w-lg mx-auto flex p-1">
           {TABS.map(({ id, label, Icon }) => {
             const active = tab === id;
@@ -208,6 +221,8 @@ export default function App() {
         </div>
       </nav>
 
-    </div>
+        </div>
+      )}
+    </>
   );
 }
