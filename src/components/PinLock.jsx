@@ -215,13 +215,17 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
         </motion.div>
 
         {/* Keypad */}
-        <div className="grid grid-cols-4 gap-3 w-full max-w-[320px]">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+        <div
+          className="grid gap-3 w-full"
+          style={{ gridTemplateColumns: 'repeat(4, 1fr)', maxWidth: '320px' }}
+        >
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((num) => (
             <motion.button
               key={num}
               whileTap={{ scale: 0.85 }}
               onClick={() => handleNumberPress(num.toString())}
-              className="aspect-square rounded-full bg-slate-800/60 border border-slate-700/50 text-white text-xl font-semibold flex items-center justify-center hover:bg-slate-700/60 active:bg-slate-600 transition-colors"
+              className="rounded-full bg-slate-800/60 border border-slate-700/50 text-white font-semibold flex items-center justify-center hover:bg-slate-700/60 active:bg-slate-600 transition-colors"
+              style={{ aspectRatio: '1 / 1', fontSize: '1.25rem' }}
             >
               {num}
             </motion.button>
@@ -229,29 +233,14 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
 
           <motion.button
             whileTap={{ scale: 0.85 }}
-            onClick={() => handleNumberPress("9")}
-            className="aspect-square rounded-full bg-slate-800/60 border border-slate-700/50 text-white text-xl font-semibold flex items-center justify-center hover:bg-slate-700/60 active:bg-slate-600 transition-colors"
-          >
-            9
-          </motion.button>
-
-          <motion.button
-            whileTap={{ scale: 0.85 }}
-            onClick={() => handleNumberPress("0")}
-            className="aspect-square rounded-full bg-slate-800/60 border border-slate-700/50 text-white text-xl font-semibold flex items-center justify-center hover:bg-slate-700/60 active:bg-slate-600 transition-colors"
-          >
-            0
-          </motion.button>
-
-          <motion.button
-            whileTap={{ scale: 0.85 }}
             onClick={handleDelete}
-            className="aspect-square rounded-full bg-slate-800/60 border border-slate-700/50 text-slate-400 flex items-center justify-center hover:text-white hover:bg-slate-700/60 active:bg-slate-600 transition-colors"
+            className="rounded-full bg-slate-800/60 border border-slate-700/50 text-slate-400 flex items-center justify-center hover:text-white hover:bg-slate-700/60 active:bg-slate-600 transition-colors"
+            style={{ aspectRatio: '1 / 1' }}
           >
             <Delete size={22} />
           </motion.button>
 
-          {/* Empty placeholder to complete the 4th row */}
+          {/* Empty placeholder to complete the 4th column */}
           <div />
         </div>
       </div>
