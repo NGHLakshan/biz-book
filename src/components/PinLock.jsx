@@ -214,34 +214,44 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
           {renderDots()}
         </motion.div>
 
-        {/* Keypad */}
+        {/* Keypad — standard 3-column phone layout */}
         <div
           className="grid gap-3 w-full"
-          style={{ gridTemplateColumns: 'repeat(4, 1fr)', maxWidth: '320px' }}
+          style={{ gridTemplateColumns: 'repeat(3, 1fr)', maxWidth: '280px' }}
         >
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((num) => (
+          {/* Digits 1–9 */}
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
             <motion.button
               key={num}
               whileTap={{ scale: 0.85 }}
               onClick={() => handleNumberPress(num.toString())}
-              className="rounded-full bg-slate-800/60 border border-slate-700/50 text-white font-semibold flex items-center justify-center hover:bg-slate-700/60 active:bg-slate-600 transition-colors"
-              style={{ aspectRatio: '1 / 1', fontSize: '1.25rem' }}
+              className="rounded-2xl bg-slate-800/60 border border-slate-700/50 text-white font-semibold flex items-center justify-center hover:bg-slate-700/60 active:bg-slate-600 transition-colors"
+              style={{ aspectRatio: '1 / 1', fontSize: '1.35rem' }}
             >
               {num}
             </motion.button>
           ))}
 
+          {/* Bottom row: blank | 0 | delete */}
+          <div />
+
+          <motion.button
+            whileTap={{ scale: 0.85 }}
+            onClick={() => handleNumberPress('0')}
+            className="rounded-2xl bg-slate-800/60 border border-slate-700/50 text-white font-semibold flex items-center justify-center hover:bg-slate-700/60 active:bg-slate-600 transition-colors"
+            style={{ aspectRatio: '1 / 1', fontSize: '1.35rem' }}
+          >
+            0
+          </motion.button>
+
           <motion.button
             whileTap={{ scale: 0.85 }}
             onClick={handleDelete}
-            className="rounded-full bg-slate-800/60 border border-slate-700/50 text-slate-400 flex items-center justify-center hover:text-white hover:bg-slate-700/60 active:bg-slate-600 transition-colors"
+            className="rounded-2xl bg-slate-800/60 border border-slate-700/50 text-slate-400 flex items-center justify-center hover:text-white hover:bg-slate-700/60 active:bg-slate-600 transition-colors"
             style={{ aspectRatio: '1 / 1' }}
           >
             <Delete size={22} />
           </motion.button>
-
-          {/* Empty placeholder to complete the 4th column */}
-          <div />
         </div>
       </div>
     </div>
