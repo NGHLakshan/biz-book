@@ -21,12 +21,15 @@ const TABS = [
   { id: "settings",  label: "Settings",   Icon: Settings2 },
 ];
 
-export default function App() {
+export default function App({ onReady }) {
   const [tab, setTab] = useState("dashboard");
   const [isLocked, setIsLocked] = useState(() => !!localStorage.getItem("app_pin"));
   const [transactions, setTransactions] = useState([]);
   const [user, setUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
+
+  // Hide the HTML splash screen as soon as React is mounted and ready to render
+  useEffect(() => { onReady?.(); }, []);
 
   useEffect(() => {
     // Listen for authentication state changes
