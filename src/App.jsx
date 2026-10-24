@@ -126,7 +126,7 @@ export default function App({ onReady }) {
       {/* Header */}
       <header className="sticky top-0 z-40 glass-panel px-4 py-3 border-b border-slate-800/50">
         <div className="max-w-lg mx-auto flex items-center gap-3">
-          <Logo size="md" />
+          <Logo size="md" onClick={() => window.location.reload()} />
           <div className="flex-1">
             <h1 className="font-bold text-base leading-none tracking-tight gradient-text from-emerald-400 to-sky-400 pb-1">
               Anura Biz Book
