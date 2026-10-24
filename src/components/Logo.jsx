@@ -19,7 +19,7 @@ export default function Logo({ size = "md", className = "", onClick }) {
       <img
         src="/pwa-192x192.png"
         alt="Anura Biz Book Logo"
-        className="w-full h-full object-cover scale-[1.28] transition-transform duration-200 group-hover:scale-[1.34] select-none pointer-events-none"
+        className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105 select-none pointer-events-none"
       />
     </motion.div>
   );
