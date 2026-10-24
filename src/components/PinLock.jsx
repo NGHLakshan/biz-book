@@ -12,6 +12,7 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
   const [setupStep, setSetupStep] = useState(1);
   const [firstPin, setFirstPin] = useState("");
   const [isError, setIsError] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   // For "change" mode: step 1=verify old, step 2=enter new, step 3=confirm new
   const [changeStep, setChangeStep] = useState(1);
 
@@ -28,7 +29,7 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (isError) return;
+      if (isError || isSuccess) return;
       if (/^[0-9]$/.test(e.key)) {
         if (pin.length < PIN_LENGTH) {
           setPin((prev) => prev + e.key);
@@ -47,7 +48,7 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
     if (mode === "verify") {
       const savedPin = localStorage.getItem("app_pin");
       if (enteredPin === savedPin) {
-        onSuccess();
+        triggerSuccess(onSuccess);
       } else {
         triggerError("Incorrect PIN");
       }
@@ -111,6 +112,13 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
     }
   };
 
+  const triggerSuccess = (callback) => {
+    setIsSuccess(true);
+    setTimeout(() => {
+      callback();
+    }, 350);
+  };
+
   const triggerError = (msg) => {
     if (msg) toast.error(msg);
     setIsError(true);
@@ -166,10 +174,12 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
           key={i}
           initial={false}
           animate={{
-            scale: i < pin.length ? 1.2 : 1,
-            backgroundColor: i < pin.length ? "#10b981" : "#334155",
-            borderColor: i < pin.length ? "#10b981" : "#475569",
+            scale: isSuccess ? 1.4 : i < pin.length ? 1.2 : 1,
+            backgroundColor: isSuccess ? "#34d399" : i < pin.length ? "#10b981" : "#334155",
+            borderColor: isSuccess ? "#34d399" : i < pin.length ? "#10b981" : "#475569",
+            boxShadow: isSuccess ? "0 0 12px 4px rgba(52,211,153,0.5)" : "none",
           }}
+          transition={{ duration: 0.2, delay: isSuccess ? i * 0.05 : 0 }}
           className="w-4 h-4 rounded-full border-2 mx-2"
         />
       );
