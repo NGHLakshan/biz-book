@@ -225,7 +225,7 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
               key={num}
               whileTap={{ scale: 0.85 }}
               onClick={() => handleNumberPress(num.toString())}
-              className="rounded-2xl bg-slate-800/60 border border-slate-700/50 text-white font-semibold flex items-center justify-center hover:bg-slate-700/60 active:bg-slate-600 transition-colors"
+              className="rounded-full text-white font-semibold flex items-center justify-center hover:bg-slate-700/40 active:bg-slate-600/60 transition-colors"
               style={{ aspectRatio: '1 / 1', fontSize: '1.35rem' }}
             >
               {num}
@@ -238,7 +238,7 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
           <motion.button
             whileTap={{ scale: 0.85 }}
             onClick={() => handleNumberPress('0')}
-            className="rounded-2xl bg-slate-800/60 border border-slate-700/50 text-white font-semibold flex items-center justify-center hover:bg-slate-700/60 active:bg-slate-600 transition-colors"
+            className="rounded-full text-white font-semibold flex items-center justify-center hover:bg-slate-700/40 active:bg-slate-600/60 transition-colors"
             style={{ aspectRatio: '1 / 1', fontSize: '1.35rem' }}
           >
             0
@@ -247,7 +247,7 @@ export default function PinLock({ mode = "verify", onSuccess, onClose }) {
           <motion.button
             whileTap={{ scale: 0.85 }}
             onClick={handleDelete}
-            className="rounded-2xl bg-slate-800/60 border border-slate-700/50 text-slate-400 flex items-center justify-center hover:text-white hover:bg-slate-700/60 active:bg-slate-600 transition-colors"
+            className="rounded-full text-slate-400 flex items-center justify-center hover:text-white hover:bg-slate-700/40 active:bg-slate-600/60 transition-colors"
             style={{ aspectRatio: '1 / 1' }}
           >
             <Delete size={22} />
