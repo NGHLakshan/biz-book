@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import CategoryManagerModal from "./CategoryManagerModal";
 import PinLock from "./PinLock";
+import { registerModal } from "../utils/modalHistory";
 
 export default function Settings({ transactions }) {
   const [categories, setCategories] = useState([]);
@@ -19,6 +20,19 @@ export default function Settings({ transactions }) {
   const [isPinEnabled, setIsPinEnabled] = useState(false);
   const [showPinSetup, setShowPinSetup] = useState(false);
   const [pinMode, setPinMode] = useState("setup"); // 'setup' or 'remove'
+
+  // Register modals so back button closes them
+  useEffect(() => {
+    if (managingCategory) {
+      return registerModal(() => setManagingCategory(null));
+    }
+  }, [managingCategory]);
+
+  useEffect(() => {
+    if (showPinSetup) {
+      return registerModal(() => setShowPinSetup(false));
+    }
+  }, [showPinSetup]);
 
   useEffect(() => {
     const unsub = subscribeToCategories((data) => {

@@ -23,11 +23,17 @@ const getDefaultForm = (defaultCategory = "") => {
   };
 };
 
-export default function TransactionForm() {
+export default function TransactionForm({ onDirtyChange }) {
   const [form, setForm] = useState(() => getDefaultForm(""));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
+
+  // Report dirty state if user has entered amount or description
+  const isDirty = !!(form.amount?.trim() || form.description?.trim());
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   useEffect(() => {
     const unsub = subscribeToCategories((data) => {
@@ -72,6 +78,7 @@ export default function TransactionForm() {
     try {
       await addTransaction(form);
       setForm({ ...getDefaultForm(categories.length > 0 ? categories[0].name : ""), date: form.date, time: form.time });
+      onDirtyChange?.(false);
       toast.success('Transaction saved successfully!');
     } catch (err) {
       console.error("Failed to save transaction:", err);

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from "recharts";
 import CategoryManagerModal from "./CategoryManagerModal";
 import EditTransactionModal from "./EditTransactionModal";
+import { registerModal } from "../utils/modalHistory";
 import { useRef } from "react";
 
 const ScrollResetContainer = ({ children, className }) => {
@@ -141,34 +142,51 @@ export default function Dashboard({ onNewEntry, initialTransactions = [] }) {
     };
   }, []);
 
-  // Push a history state whenever a modal opens, so the back button closes it
+  // Register modals with modalHistory so the back button closes the topmost open modal
   useEffect(() => {
-    const anyModalOpen = selectedMethod || showNetCategoryModal || viewingCategory;
-    if (anyModalOpen) {
-      window.history.pushState({ modal: true }, "");
-    }
-  }, [selectedMethod, showNetCategoryModal, viewingCategory]);
-
-  // Handle back button press — close the topmost open modal
-  useEffect(() => {
-    const handlePopState = () => {
-      if (viewingCategory) {
+    if (viewingCategory) {
+      return registerModal(() => {
         setViewingCategory(null);
         setSelectedSubCategoryFilter(null);
         setVisibleTxLimit(10);
-      } else if (selectedNetCategory) {
+      });
+    }
+  }, [viewingCategory]);
+
+  useEffect(() => {
+    if (selectedNetCategory) {
+      return registerModal(() => {
         setSelectedNetCategory(null);
         setSelectedNetSubFilter(null);
-      } else if (showNetCategoryModal) {
+      });
+    }
+  }, [selectedNetCategory]);
+
+  useEffect(() => {
+    if (showNetCategoryModal && !selectedNetCategory) {
+      return registerModal(() => {
         setShowNetCategoryModal(false);
-        setSelectedNetCategory(null);
-      } else if (selectedMethod) {
-        setSelectedMethod(null);
-      }
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, [viewingCategory, selectedNetCategory, showNetCategoryModal, selectedMethod]);
+      });
+    }
+  }, [showNetCategoryModal, selectedNetCategory]);
+
+  useEffect(() => {
+    if (selectedMethod) {
+      return registerModal(() => setSelectedMethod(null));
+    }
+  }, [selectedMethod]);
+
+  useEffect(() => {
+    if (editingTransaction) {
+      return registerModal(() => setEditingTransaction(null));
+    }
+  }, [editingTransaction]);
+
+  useEffect(() => {
+    if (managingCategory) {
+      return registerModal(() => setManagingCategory(null));
+    }
+  }, [managingCategory]);
 
   const filtered = useMemo(() => {
     return transactions.filter((t) => {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { PlusCircle, LayoutDashboard, Settings2, Lock, BarChart2, Wallet } from "lucide-react";
+import { PlusCircle, LayoutDashboard, Settings2, Lock, BarChart2, Wallet, AlertTriangle } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Toaster } from "react-hot-toast";
 import { onAuthStateChanged } from "firebase/auth";
@@ -13,6 +13,7 @@ import SummaryView from "./components/SummaryView";
 import Logo from "./components/Logo";
 import Login from "./components/Login";
 import { subscribeToTransactions } from "./services/transactions";
+import { handleModalPopState } from "./utils/modalHistory";
 
 const TABS = [
   { id: "dashboard", label: "Dashboard",  Icon: LayoutDashboard },
@@ -27,6 +28,69 @@ export default function App({ onReady }) {
   const [transactions, setTransactions] = useState([]);
   const [user, setUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
+  const [isFormDirty, setIsFormDirty] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [pendingTab, setPendingTab] = useState(null);
+
+  // Initialize history state on mount
+  useEffect(() => {
+    window.history.replaceState({ tab: "dashboard" }, "");
+  }, []);
+
+  const executeTabChange = (newTab) => {
+    if (newTab === "dashboard") {
+      if (tab !== "dashboard") {
+        window.history.replaceState({ tab: "dashboard" }, "");
+      }
+    } else {
+      if (tab === "dashboard") {
+        window.history.pushState({ tab: newTab }, "");
+      } else {
+        window.history.replaceState({ tab: newTab }, "");
+      }
+    }
+    setTab(newTab);
+  };
+
+  const handleTabChange = (newTab) => {
+    if (tab === newTab) return;
+    if (tab === "form" && isFormDirty) {
+      setPendingTab(newTab);
+      setShowDiscardConfirm(true);
+      return;
+    }
+    executeTabChange(newTab);
+  };
+
+  // Back button (popstate) listener
+  useEffect(() => {
+    const handlePopState = () => {
+      // 1. If any modal is open, close topmost modal and stay on current page
+      if (handleModalPopState()) {
+        return;
+      }
+
+      // 2. If on Form and form has unsaved data, prompt confirmation
+      if (tab === "form" && isFormDirty) {
+        window.history.pushState({ tab: "form" }, "");
+        setPendingTab("dashboard");
+        setShowDiscardConfirm(true);
+        return;
+      }
+
+      // 3. If on any non-dashboard tab, go back to Dashboard
+      if (tab !== "dashboard") {
+        setTab("dashboard");
+        window.history.replaceState({ tab: "dashboard" }, "");
+        return;
+      }
+
+      // 4. If on Dashboard and no modals: user backed out, browser exits naturally
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [tab, isFormDirty]);
 
   // Hide the HTML splash screen as soon as React is mounted and ready to render
   useEffect(() => { onReady?.(); }, []);
@@ -169,14 +233,14 @@ export default function App({ onReady }) {
           >
             <div className="h-full w-full overflow-y-auto pb-24" id="main-scroller">
               {tab === "form" ? (
-                <TransactionForm />
+                <TransactionForm onDirtyChange={setIsFormDirty} />
               ) : tab === "settings" ? (
                 <Settings transactions={transactions} />
               ) : tab === "summary" ? (
                 <SummaryView transactions={transactions} />
               ) : (
                 <Dashboard 
-                  onNewEntry={() => setTab("form")} 
+                  onNewEntry={() => handleTabChange("form")} 
                   initialTransactions={transactions}
                 />
               )}
@@ -194,7 +258,7 @@ export default function App({ onReady }) {
               <button
                 key={id}
                 id={`nav-${id}`}
-                onClick={() => setTab(id)}
+                onClick={() => handleTabChange(id)}
                 className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl transition-all relative outline-none ${
                   active ? "text-emerald-400" : "text-slate-500 hover:text-slate-300"
                 }`}
@@ -223,6 +287,55 @@ export default function App({ onReady }) {
           })}
         </div>
       </nav>
+
+      {/* Unsaved Changes Discard Confirmation Dialog */}
+      <AnimatePresence>
+        {showDiscardConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-700/80 p-6 shadow-2xl text-center space-y-4"
+            >
+              <div className="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30">
+                <AlertTriangle size={26} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">දත්ත ඉවත් වේවි!</h3>
+                <p className="text-sm text-slate-300 mt-1">
+                  ඔබ ඇතුළත් කළ තොරතුරු Save කර නැත. පිටවීමට අවශ්‍යද?
+                </p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDiscardConfirm(false);
+                    setPendingTab(null);
+                  }}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-sm transition-all border border-slate-700"
+                >
+                  නැත (Cancel)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFormDirty(false);
+                    setShowDiscardConfirm(false);
+                    executeTabChange(pendingTab || "dashboard");
+                    setPendingTab(null);
+                  }}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-medium text-sm transition-all shadow-lg shadow-rose-600/30"
+                >
+                  ඔව්, පිටවෙන්න
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
