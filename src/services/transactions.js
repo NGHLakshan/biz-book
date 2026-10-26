@@ -8,91 +8,86 @@ import {
   orderBy,
   onSnapshot,
   Timestamp,
-  disableNetwork,
+  setDoc,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import toast from "react-hot-toast";
 
 const COLLECTION = "transactions";
 
-// Helper to ensure writes resolve immediately to local IndexedDB when offline
-const withOfflineSafety = async (writeFn) => {
+/**
+ * Execute a Firestore write with offline-first speed:
+ * - If offline: writes to local cache (IndexedDB) immediately and resolves without waiting for Google Cloud server ack.
+ * - If online: awaits server acknowledgement, but caps waiting at 800ms so network hiccups never freeze the UI.
+ */
+const executeWrite = async (writePromise) => {
   if (typeof navigator !== "undefined" && !navigator.onLine) {
-    disableNetwork(db).catch(() => {});
+    writePromise.catch((err) => console.error("Firestore offline write error:", err));
+    return;
   }
 
-  let timerId = null;
-  const timeoutGuard = new Promise((resolve) => {
-    timerId = setTimeout(() => {
-      disableNetwork(db).catch(() => {});
-      resolve();
-    }, 1500);
-  });
-
-  try {
-    const result = await writeFn();
-    return result;
-  } finally {
-    if (timerId) clearTimeout(timerId);
-  }
+  await Promise.race([
+    writePromise,
+    new Promise((resolve) => setTimeout(resolve, 800)),
+  ]);
 };
 
 /**
  * Add a new transaction document to Firestore.
- * Works offline — queued in IndexedDB and auto-synced when online.
+ * Generates client-side auto-ID and writes immediately to IndexedDB local cache.
  */
 export const addTransaction = async (data) => {
-  return await withOfflineSafety(async () => {
-    const docRef = await addDoc(collection(db, COLLECTION), {
-      date: Timestamp.fromDate(new Date(data.date)),
-      time: data.time || "",
-      type: data.type,
-      category: data.category,
-      subCategory: data.subCategory,
-      amount: Number(data.amount),
-      paymentMethod: data.paymentMethod,
-      description: data.description || "",
-      createdAt: Timestamp.now(),
-    });
-    return docRef.id;
-  });
+  const docRef = doc(collection(db, COLLECTION));
+  const payload = {
+    date: Timestamp.fromDate(new Date(data.date)),
+    time: data.time || "",
+    type: data.type,
+    category: data.category,
+    subCategory: data.subCategory,
+    amount: Number(data.amount),
+    paymentMethod: data.paymentMethod,
+    description: data.description || "",
+    createdAt: Timestamp.now(),
+  };
+
+  const writePromise = setDoc(docRef, payload);
+  await executeWrite(writePromise);
+  return docRef.id;
 };
 
 /**
  * Update an existing transaction document in Firestore.
  */
 export const updateTransaction = async (id, data) => {
-  return await withOfflineSafety(async () => {
-    const docRef = doc(db, COLLECTION, id);
-    const updatePayload = {
-      type: data.type,
-      category: data.category,
-      subCategory: data.subCategory,
-      amount: Number(data.amount),
-      paymentMethod: data.paymentMethod,
-      description: data.description || "",
-      time: data.time || "",
-      updatedAt: Timestamp.now(),
-    };
+  const docRef = doc(db, COLLECTION, id);
+  const updatePayload = {
+    type: data.type,
+    category: data.category,
+    subCategory: data.subCategory,
+    amount: Number(data.amount),
+    paymentMethod: data.paymentMethod,
+    description: data.description || "",
+    time: data.time || "",
+    updatedAt: Timestamp.now(),
+  };
 
-    if (data.date) {
-      updatePayload.date = data.date instanceof Date 
-        ? Timestamp.fromDate(data.date) 
-        : Timestamp.fromDate(new Date(data.date));
-    }
+  if (data.date) {
+    updatePayload.date = data.date instanceof Date 
+      ? Timestamp.fromDate(data.date) 
+      : Timestamp.fromDate(new Date(data.date));
+  }
 
-    await updateDoc(docRef, updatePayload);
-  });
+  const writePromise = updateDoc(docRef, updatePayload);
+  await executeWrite(writePromise);
 };
 
 /**
  * Delete a transaction document from Firestore.
  */
 export const deleteTransaction = async (id) => {
-  return await withOfflineSafety(async () => {
-    const docRef = doc(db, COLLECTION, id);
-    await deleteDoc(docRef);
-  });
+  const docRef = doc(db, COLLECTION, id);
+  const writePromise = deleteDoc(docRef);
+  await executeWrite(writePromise);
 };
 
 /**
