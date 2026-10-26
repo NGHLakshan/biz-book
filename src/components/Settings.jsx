@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { subscribeToCategories, addCategory } from "../services/categories";
-import { PlusCircle, Settings2, ChevronRight, TrendingUp, TrendingDown, KeyRound, Shield, Download, FileText } from "lucide-react";
+import { PlusCircle, Settings2, ChevronRight, TrendingUp, TrendingDown, KeyRound, Shield, Download, FileText, Trash2 } from "lucide-react";
 import { exportToCSV } from "../utils/export";
+import { clearAllTransactions } from "../services/transactions";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import CategoryManagerModal from "./CategoryManagerModal";
@@ -46,6 +47,32 @@ export default function Settings({ transactions }) {
 
     return unsub;
   }, []);
+
+  const [isClearing, setIsClearing] = useState(false);
+
+  const handleClearAllTransactions = async () => {
+    const txCount = transactions?.length || 0;
+    if (txCount === 0) {
+      toast.error("මකා දැමීමට කිසිදු Transaction එකක් නැත.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `ඔබ ඇතුළත් කළ Test Transactions ${txCount} ම සම්පූර්ණයෙන්ම මකා දැමීමට අවශ්‍යද?\n\n(Categories සහ අනෙකුත් සැකසුම් කිසිවක් වෙනස් නොවේ)`
+    );
+    if (!confirmed) return;
+
+    setIsClearing(true);
+    try {
+      await clearAllTransactions(transactions);
+      toast.success(`Transactions ${txCount} ම සාර්ථකව මකා දැමුණා!`, { duration: 4000 });
+    } catch (err) {
+      console.error("Failed to clear transactions:", err);
+      toast.error("Transactions මකා දැමීම අසාර්ථකයි.");
+    } finally {
+      setIsClearing(false);
+    }
+  };
 
   const handleAddCategory = async (e) => {
     e.preventDefault();
@@ -255,6 +282,30 @@ export default function Settings({ transactions }) {
                 Export
               </motion.button>
             </div>
+          </div>
+
+          {/* Clear Test Transactions */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
+            <div>
+              <span className="text-white text-sm font-semibold flex items-center gap-1.5">
+                <Trash2 size={15} className="text-rose-400" />
+                Clear Test Transactions
+              </span>
+              <span className="text-slate-400 text-xs block mt-0.5">
+                Delete all test transactions ({transactions?.length || 0}) before handing over. Categories will be preserved.
+              </span>
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              disabled={isClearing || !transactions || transactions.length === 0}
+              onClick={handleClearAllTransactions}
+              className="bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-xs font-bold px-3.5 py-2 rounded-lg transition-colors flex items-center gap-1.5 shadow-lg shadow-rose-600/20 shrink-0 self-start sm:self-auto cursor-pointer"
+            >
+              <Trash2 size={14} />
+              {isClearing ? "Clearing…" : "Clear Transactions"}
+            </motion.button>
           </div>
         </div>
       </div>

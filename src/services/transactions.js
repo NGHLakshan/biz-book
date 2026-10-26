@@ -9,6 +9,7 @@ import {
   onSnapshot,
   Timestamp,
   setDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import toast from "react-hot-toast";
@@ -91,6 +92,25 @@ export const deleteTransaction = async (id) => {
   const docRef = doc(db, COLLECTION, id);
   const writePromise = deleteDoc(docRef);
   await executeWrite(writePromise);
+};
+
+/**
+ * Delete all transactions in batches (clears test data while preserving categories).
+ */
+export const clearAllTransactions = async (transactionsList) => {
+  if (!transactionsList || transactionsList.length === 0) return 0;
+  
+  const chunkSize = 400;
+  for (let i = 0; i < transactionsList.length; i += chunkSize) {
+    const chunk = transactionsList.slice(i, i + chunkSize);
+    const batch = writeBatch(db);
+    chunk.forEach((t) => {
+      const docRef = doc(db, COLLECTION, t.id);
+      batch.delete(docRef);
+    });
+    await batch.commit();
+  }
+  return transactionsList.length;
 };
 
 /**
