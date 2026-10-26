@@ -293,16 +293,17 @@ export default function App({ onReady }) {
       <OfflineBanner />
 
       {/* Main Content with Page Transitions */}
-      {/* Each motion.div gets key={tab} → fresh DOM element → scrollTop always 0 */}
+      {/* mode="sync" lets exit and enter run together — no black flash gap */}
       <main className="flex-1 overflow-hidden relative z-10">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="sync" initial={false}>
           <motion.div
             key={tab}
-            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            className="h-full w-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, ease: "easeInOut" }}
+            className="absolute inset-0 w-full h-full"
+            style={{ willChange: "opacity" }}
           >
             <div className="h-full w-full overflow-y-auto pb-24" id="main-scroller">
               {tab === "form" ? (
