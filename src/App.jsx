@@ -27,15 +27,9 @@ export default function App({ onReady }) {
   const [isLocked, setIsLocked] = useState(() => !!localStorage.getItem("app_pin"));
   const [transactions, setTransactions] = useState([]);
   const [user, setUser] = useState(() => auth.currentUser);
-  // If PIN is set OR we had a previously logged-in user, always start in "checking" state
-  // to prevent the Login screen flashing before Firebase loads from IndexedDB.
   const [authChecking, setAuthChecking] = useState(() => {
-    if (auth.currentUser) return false; // Already loaded synchronously — no wait needed
-    const hadUser = !!localStorage.getItem("biz_has_user");
-    const hasPIN = !!localStorage.getItem("app_pin");
-    // If user was previously signed in (PIN implies this), keep spinner visible
-    // until Firebase loads the session from IndexedDB. Prevents Login flash.
-    return hadUser || hasPIN;
+    if (auth.currentUser) return false;
+    return !!localStorage.getItem("biz_has_user");
   });
   const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
   const [isFormDirty, setIsFormDirty] = useState(false);
@@ -119,7 +113,7 @@ export default function App({ onReady }) {
 
   useEffect(() => {
     let initialCheckDone = false;
-    const hadKnownUser = !!(localStorage.getItem("biz_has_user") || localStorage.getItem("app_pin"));
+    const hadSavedUser = !!localStorage.getItem("biz_has_user");
 
     const finishInitialCheck = (currentUser) => {
       if (initialCheckDone) return;
@@ -164,8 +158,8 @@ export default function App({ onReady }) {
     }
 
     // 4. Safety Fallback:
-    // Never allow infinite spinner — if IndexedDB or Firebase hangs, resolve within 2s to show Login.
-    const timeoutMs = hadKnownUser ? 2000 : 300;
+    // Give IndexedDB 4.5s if device had a known user, 400ms if fresh visitor
+    const timeoutMs = hadSavedUser ? 4500 : 400;
     const fallbackTimer = setTimeout(() => {
       finishInitialCheck(auth.currentUser);
     }, timeoutMs);
@@ -183,8 +177,23 @@ export default function App({ onReady }) {
     return unsub;
   }, [user]);
 
-  // Show loading spinner only while auth is actively initializing
-  if (authChecking) {
+  // PIN Lock must be checked FIRST — before auth — so the user always
+  // sees the PIN screen when the app is reopened after being killed/refreshed.
+  if (isLocked) {
+    return (
+      <>
+        <Toaster position="top-center" toastOptions={{ style: { background: '#1e293b', color: '#fff', borderRadius: '16px', border: '1px solid #334155' } }} />
+        <PinLock
+          mode="verify"
+          onSuccess={() => setIsLocked(false)}
+        />
+      </>
+    );
+  }
+
+  // Show loading spinner while restoring Firebase session — NEVER flash the Login screen.
+  const hadSavedUser = !!localStorage.getItem("biz_has_user");
+  if (authChecking || (!user && hadSavedUser)) {
     return (
       <div className="h-[100dvh] w-screen bg-slate-950 flex flex-col items-center justify-center">
         <Logo size="lg" className="animate-pulse mb-6 opacity-50" />
@@ -193,7 +202,7 @@ export default function App({ onReady }) {
     );
   }
 
-  // Show Login screen if not authenticated
+  // Show Login screen only if truly not authenticated and no saved session exists
   if (!user) {
     return (
       <>
@@ -287,36 +296,23 @@ export default function App({ onReady }) {
       {/* Offline Banner */}
       <OfflineBanner />
 
-      {/* Main Content with Page Transitions */}
-      {/* mode="wait" ensures exiting page unmounts before next renders, avoiding UI thread freezing */}
+      {/* Main Content */}
       <main className="flex-1 overflow-hidden relative z-10">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={tab}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15, ease: "easeInOut" }}
-            className="absolute inset-0 w-full h-full"
-            style={{ willChange: "opacity" }}
-          >
-            <div className="h-full w-full overflow-y-auto pb-24" id="main-scroller">
-              {tab === "form" ? (
-                <TransactionForm onDirtyChange={setIsFormDirty} />
-              ) : tab === "settings" ? (
-                <Settings transactions={transactions} />
-              ) : tab === "summary" ? (
-                <SummaryView transactions={transactions} />
-              ) : (
-                <Dashboard 
-                  onNewEntry={() => handleTabChange("form")} 
-                  transactions={transactions}
-                  initialTransactions={transactions}
-                />
-              )}
-            </div>
-          </motion.div>
-        </AnimatePresence>
+        <div className="h-full w-full overflow-y-auto pb-24" id="main-scroller">
+          {tab === "form" ? (
+            <TransactionForm onDirtyChange={setIsFormDirty} />
+          ) : tab === "settings" ? (
+            <Settings transactions={transactions} />
+          ) : tab === "summary" ? (
+            <SummaryView transactions={transactions} />
+          ) : (
+            <Dashboard 
+              onNewEntry={() => handleTabChange("form")} 
+              transactions={transactions}
+              initialTransactions={transactions}
+            />
+          )}
+        </div>
       </main>
 
       {/* Bottom Navigation */}
@@ -404,24 +400,6 @@ export default function App({ onReady }) {
               </div>
             </motion.div>
           </div>
-        )}
-      </AnimatePresence>
-
-      {/* PIN Lock Overlay — Keeps main app mounted behind to prevent Process Death, flash reloads, and OOM */}
-      <AnimatePresence>
-        {isLocked && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 bg-slate-950"
-          >
-            <PinLock
-              mode="verify"
-              onSuccess={() => setIsLocked(false)}
-            />
-          </motion.div>
         )}
       </AnimatePresence>
 

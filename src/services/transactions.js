@@ -21,14 +21,17 @@ const COLLECTION = "transactions";
  * - If online: awaits server acknowledgement, but caps waiting at 800ms so network hiccups never freeze the UI.
  */
 const executeWrite = async (writePromise) => {
+  // Catch background write errors so they don't cause unhandled rejections
+  writePromise.catch((err) => console.error("Firestore write error:", err));
+
   if (typeof navigator !== "undefined" && !navigator.onLine) {
-    writePromise.catch((err) => console.error("Firestore offline write error:", err));
     return;
   }
 
+  // Resolve quickly (capped at 60ms) so user interactions feel instantaneous and snappy
   await Promise.race([
     writePromise,
-    new Promise((resolve) => setTimeout(resolve, 800)),
+    new Promise((resolve) => setTimeout(resolve, 60)),
   ]);
 };
 

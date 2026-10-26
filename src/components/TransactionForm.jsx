@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { addTransaction } from "../services/transactions";
 import { subscribeToCategories } from "../services/categories";
 import { PlusCircle } from "lucide-react";
@@ -79,6 +79,9 @@ export default function TransactionForm({ onDirtyChange }) {
       await addTransaction(form);
       setForm({ ...getDefaultForm(categories.length > 0 ? categories[0].name : ""), date: form.date, time: form.time });
       onDirtyChange?.(false);
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(25);
+      }
       toast.success(navigator.onLine ? 'Transaction saved successfully!' : 'Saved offline! Will sync when connected.');
     } catch (err) {
       console.error("Failed to save transaction:", err);
@@ -88,12 +91,17 @@ export default function TransactionForm({ onDirtyChange }) {
     }
   };
 
-  const activeCatDoc = categories.find((c) => c.name === form.category);
-  const suggestions = activeCatDoc
-    ? (form.type === "Income"
-        ? (activeCatDoc.incomeTypes || [])
-        : (activeCatDoc.expenseTypes || []))
-    : [];
+  const activeCatDoc = useMemo(
+    () => categories.find((c) => c.name === form.category),
+    [categories, form.category]
+  );
+
+  const suggestions = useMemo(() => {
+    if (!activeCatDoc) return [];
+    return form.type === "Income"
+      ? (activeCatDoc.incomeTypes || [])
+      : (activeCatDoc.expenseTypes || []);
+  }, [activeCatDoc, form.type]);
 
   const hasSuggestions = suggestions.length > 0;
 

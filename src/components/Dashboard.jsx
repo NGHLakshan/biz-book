@@ -464,7 +464,7 @@ export default function Dashboard({ onNewEntry, transactions: propTransactions, 
     };
   }, [selectedNetCategory, monthTransactions]);
 
-  const monthOptions = getMonthOptions();
+  const monthOptions = useMemo(() => getMonthOptions(), []);
   return (
     <div className="max-w-lg mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
@@ -721,7 +721,6 @@ export default function Dashboard({ onNewEntry, transactions: propTransactions, 
                 <motion.div
                   key={t.id}
                   variants={itemVariants}
-                  layout
                   onClick={() => setEditingTransaction(t)}
                   className="glass-card p-3.5 flex items-center gap-3 group hover:border-slate-600 hover:bg-slate-900/80 cursor-pointer transition-all active:scale-[0.99]"
                   title="Click to edit or delete"
