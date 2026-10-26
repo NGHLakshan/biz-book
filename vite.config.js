@@ -35,9 +35,9 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Skip waiting so new service worker activates immediately
+        // Activate smoothly without forcibly stealing clients and causing flash reloads
         skipWaiting: true,
-        clientsClaim: true,
+        clientsClaim: false,
         // Pre-cache all built assets
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         // Never cache Firebase API calls — always fetch live

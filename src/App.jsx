@@ -128,10 +128,7 @@ export default function App({ onReady }) {
         localStorage.setItem("biz_has_user", "true");
         setUser(currentUser);
       } else {
-        // Only clear if confirmed no user on this device
-        if (!hadKnownUser) {
-          localStorage.removeItem("biz_has_user");
-        }
+        localStorage.removeItem("biz_has_user");
         setUser(null);
       }
       setAuthChecking(false);
@@ -149,7 +146,6 @@ export default function App({ onReady }) {
         setUser(currentUser);
         setAuthChecking(false);
       } else {
-        // If Firebase genuinely reports null after initial load
         if (initialCheckDone) {
           localStorage.removeItem("biz_has_user");
           setUser(null);
@@ -168,13 +164,9 @@ export default function App({ onReady }) {
     }
 
     // 4. Safety Fallback:
-    // If user has a known session or PIN, give IndexedDB up to 2.5s before falling back.
-    // If brand new user with no saved session, resolve quickly (300ms) to show Login.
-    const timeoutMs = hadKnownUser ? 2500 : 300;
+    // Never allow infinite spinner — if IndexedDB or Firebase hangs, resolve within 2s to show Login.
+    const timeoutMs = hadKnownUser ? 2000 : 300;
     const fallbackTimer = setTimeout(() => {
-      if (hadKnownUser && !auth.currentUser) {
-        localStorage.removeItem("biz_has_user");
-      }
       finishInitialCheck(auth.currentUser);
     }, timeoutMs);
 
@@ -191,24 +183,8 @@ export default function App({ onReady }) {
     return unsub;
   }, [user]);
 
-  // PIN Lock must be checked FIRST — before auth — so the user always
-  // sees the PIN screen when the app is reopened after being killed.
-  if (isLocked) {
-    return (
-      <>
-        <Toaster position="top-center" toastOptions={{ style: { background: '#1e293b', color: '#fff', borderRadius: '16px', border: '1px solid #334155' } }} />
-        <PinLock
-          mode="verify"
-          onSuccess={() => setIsLocked(false)}
-        />
-      </>
-    );
-  }
-
-  // If auth is still checking OR user had a saved session/PIN but Firebase is still restoring it,
-  // show the sleek branded loading spinner — NEVER flash the Login screen.
-  const hadKnownUser = !!(localStorage.getItem("biz_has_user") || localStorage.getItem("app_pin"));
-  if (authChecking || (!user && hadKnownUser)) {
+  // Show loading spinner only while auth is actively initializing
+  if (authChecking) {
     return (
       <div className="h-[100dvh] w-screen bg-slate-950 flex flex-col items-center justify-center">
         <Logo size="lg" className="animate-pulse mb-6 opacity-50" />
@@ -217,7 +193,7 @@ export default function App({ onReady }) {
     );
   }
 
-  // Show Login screen only if truly not authenticated and no saved session is expected
+  // Show Login screen if not authenticated
   if (!user) {
     return (
       <>
@@ -312,15 +288,15 @@ export default function App({ onReady }) {
       <OfflineBanner />
 
       {/* Main Content with Page Transitions */}
-      {/* mode="sync" lets exit and enter run together — no black flash gap */}
+      {/* mode="wait" ensures exiting page unmounts before next renders, avoiding UI thread freezing */}
       <main className="flex-1 overflow-hidden relative z-10">
-        <AnimatePresence mode="sync" initial={false}>
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={tab}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.18, ease: "easeInOut" }}
+            transition={{ duration: 0.15, ease: "easeInOut" }}
             className="absolute inset-0 w-full h-full"
             style={{ willChange: "opacity" }}
           >
@@ -334,6 +310,7 @@ export default function App({ onReady }) {
               ) : (
                 <Dashboard 
                   onNewEntry={() => handleTabChange("form")} 
+                  transactions={transactions}
                   initialTransactions={transactions}
                 />
               )}
@@ -427,6 +404,24 @@ export default function App({ onReady }) {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* PIN Lock Overlay — Keeps main app mounted behind to prevent Process Death, flash reloads, and OOM */}
+      <AnimatePresence>
+        {isLocked && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 bg-slate-950"
+          >
+            <PinLock
+              mode="verify"
+              onSuccess={() => setIsLocked(false)}
+            />
+          </motion.div>
         )}
       </AnimatePresence>
 

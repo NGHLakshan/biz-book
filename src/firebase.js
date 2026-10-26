@@ -4,6 +4,7 @@ import {
   initializeFirestore, 
   persistentLocalCache, 
   persistentMultipleTabManager,
+  memoryLocalCache,
   disableNetwork,
   enableNetwork 
 } from "firebase/firestore";
@@ -20,14 +21,25 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// persistentLocalCache: IndexedDB-backed offline persistence.
-// Data survives app close/refresh — loads instantly even without internet.
-// persistentMultipleTabManager allows multiple browser tabs to stay in sync.
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager(),
-  }),
-});
+let firestoreDb;
+try {
+  firestoreDb = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+    }),
+  });
+} catch (err) {
+  console.warn("Firestore persistent cache initialization failed, falling back to memory cache:", err);
+  try {
+    firestoreDb = initializeFirestore(app, {
+      localCache: memoryLocalCache(),
+    });
+  } catch (fallbackErr) {
+    console.error("Firestore initialization error:", fallbackErr);
+  }
+}
+
+export const db = firestoreDb;
 
 // Initialize Firebase Authentication
 export const auth = getAuth(app);

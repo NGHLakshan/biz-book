@@ -95,9 +95,10 @@ const itemVariants = {
   show: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
 
-export default function Dashboard({ onNewEntry, initialTransactions = [] }) {
-  const [transactions, setTransactions] = useState(initialTransactions);
-  const [loading, setLoading] = useState(() => initialTransactions.length === 0);
+export default function Dashboard({ onNewEntry, transactions: propTransactions, initialTransactions = [] }) {
+  const [localTransactions, setLocalTransactions] = useState(initialTransactions);
+  const transactions = propTransactions !== undefined ? propTransactions : localTransactions;
+  const [loading, setLoading] = useState(() => (propTransactions ? false : initialTransactions.length === 0));
   const [selectedMonth, setSelectedMonth] = useState(() => toMonthKey(new Date()));
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [categories, setCategories] = useState([]);
@@ -120,26 +121,31 @@ export default function Dashboard({ onNewEntry, initialTransactions = [] }) {
   // No scroll refs needed — each modal uses a separate inner overflow-y-auto div
   // that is always a fresh DOM element, so scrollTop is always 0 on open.
 
-  // Sync initialTransactions from parent when available
+  // Sync initialTransactions from parent when available if not using propTransactions
   useEffect(() => {
-    if (initialTransactions.length > 0 && transactions.length === 0) {
-      setTransactions(initialTransactions);
+    if (propTransactions === undefined && initialTransactions.length > 0 && localTransactions.length === 0) {
+      setLocalTransactions(initialTransactions);
       setLoading(false);
     }
-  }, [initialTransactions]);
+  }, [initialTransactions, propTransactions]);
 
   useEffect(() => {
+    if (propTransactions !== undefined) {
+      setLoading(false);
+      return;
+    }
     const unsubTx = subscribeToTransactions((data) => {
-      setTransactions(data);
+      setLocalTransactions(data);
       setLoading(false);
     });
+    return () => unsubTx();
+  }, [propTransactions]);
+
+  useEffect(() => {
     const unsubCat = subscribeToCategories((data) => {
       setCategories(data);
     });
-    return () => {
-      unsubTx();
-      unsubCat();
-    };
+    return () => unsubCat();
   }, []);
 
   // Register modals with modalHistory so the back button closes the topmost open modal
