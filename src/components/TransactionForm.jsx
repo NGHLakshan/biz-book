@@ -79,7 +79,7 @@ export default function TransactionForm({ onDirtyChange }) {
       await addTransaction(form);
       setForm({ ...getDefaultForm(categories.length > 0 ? categories[0].name : ""), date: form.date, time: form.time });
       onDirtyChange?.(false);
-      toast.success('Transaction saved successfully!');
+      toast.success(navigator.onLine ? 'Transaction saved successfully!' : 'Saved offline! Will sync when connected.');
     } catch (err) {
       console.error("Failed to save transaction:", err);
       toast.error('Failed to sync. Check console.');

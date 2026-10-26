@@ -1,6 +1,12 @@
 // Firebase App & Firestore (Modular SDK v9+)
 import { initializeApp } from "firebase/app";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager,
+  disableNetwork,
+  enableNetwork 
+} from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
@@ -25,6 +31,21 @@ export const db = initializeFirestore(app, {
 
 // Initialize Firebase Authentication
 export const auth = getAuth(app);
+
+// Immediate offline/online switching so Firestore never hangs waiting for network timeouts
+if (typeof window !== "undefined") {
+  if (!navigator.onLine) {
+    disableNetwork(db).catch(() => {});
+  }
+
+  window.addEventListener("online", () => {
+    enableNetwork(db).catch(() => {});
+  });
+
+  window.addEventListener("offline", () => {
+    disableNetwork(db).catch(() => {});
+  });
+}
 
 
 

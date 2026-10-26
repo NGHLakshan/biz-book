@@ -26,11 +26,24 @@ export default function App({ onReady }) {
   const [tab, setTab] = useState("dashboard");
   const [isLocked, setIsLocked] = useState(() => !!localStorage.getItem("app_pin"));
   const [transactions, setTransactions] = useState([]);
-  const [user, setUser] = useState(null);
-  const [authChecking, setAuthChecking] = useState(true);
+  const [user, setUser] = useState(() => auth.currentUser);
+  const [authChecking, setAuthChecking] = useState(() => !auth.currentUser);
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [pendingTab, setPendingTab] = useState(null);
+
+  // Connection status listener
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   // Initialize history state on mount
   useEffect(() => {
@@ -96,23 +109,57 @@ export default function App({ onReady }) {
   useEffect(() => { onReady?.(); }, []);
 
   useEffect(() => {
-    // Listen for authentication state changes
-    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    let resolved = false;
+
+    const resolveAuth = (currentUser) => {
+      if (resolved) return;
+      resolved = true;
+      if (currentUser) {
+        localStorage.setItem("biz_has_user", "true");
+        setUser(currentUser);
+      } else {
+        localStorage.removeItem("biz_has_user");
+        setUser(null);
+      }
       setAuthChecking(false);
+    };
+
+    // 1. If auth.currentUser is already populated synchronously, resolve immediately
+    if (auth.currentUser) {
+      resolveAuth(auth.currentUser);
+    }
+
+    // 2. Standard Firebase auth listener
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      resolveAuth(currentUser);
     });
 
-    // authStateReady resolves fast from local IndexedDB without waiting for slow network token refresh
+    // 3. authStateReady (fast when online)
     if (typeof auth.authStateReady === "function") {
       auth.authStateReady().then(() => {
-        if (auth.currentUser) {
-          setUser(auth.currentUser);
-        }
-        setAuthChecking(false);
+        resolveAuth(auth.currentUser);
+      }).catch(() => {
+        resolveAuth(auth.currentUser);
       });
     }
 
-    return unsubscribeAuth;
+    // 4. Critical Offline / Slow Network Fallback:
+    // When offline or on a hanging connection, Firebase Auth will hang for 10-30s
+    // waiting for Google's server to refresh the token.
+    // IndexedDB completes loading within 50ms locally.
+    // So after 250ms (offline) or 800ms (online), if Firebase network has not returned,
+    // grab auth.currentUser directly and unblock the UI immediately!
+    const timeoutMs = !navigator.onLine ? 250 : 800;
+    const fallbackTimer = setTimeout(() => {
+      if (!resolved) {
+        resolveAuth(auth.currentUser);
+      }
+    }, timeoutMs);
+
+    return () => {
+      clearTimeout(fallbackTimer);
+      unsubscribeAuth();
+    };
   }, []);
 
   // Only subscribe to data when user is authenticated
@@ -197,10 +244,25 @@ export default function App({ onReady }) {
             </h1>
             <p className="text-slate-400 text-xs font-medium">Income &amp; Expense Tracker</p>
           </div>
-          {/* Online indicator */}
-          <div id="connection-indicator" className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800/50 border border-slate-700/50">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse glow-emerald" />
-            <span className="text-xs text-slate-400 hidden sm:inline font-medium">Online</span>
+          {/* Online / Offline indicator */}
+          <div
+            id="connection-indicator"
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-colors ${
+              isOnline
+                ? "bg-slate-800/50 border-slate-700/50"
+                : "bg-amber-500/10 border-amber-500/30"
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                isOnline
+                  ? "bg-emerald-400 animate-pulse glow-emerald"
+                  : "bg-amber-400"
+              }`}
+            />
+            <span className={`text-xs hidden sm:inline font-medium ${isOnline ? "text-slate-400" : "text-amber-400"}`}>
+              {isOnline ? "Online" : "Offline"}
+            </span>
           </div>
 
           {/* Quick Lock Button if PIN is set */}

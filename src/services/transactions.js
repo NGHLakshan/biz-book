@@ -8,62 +8,91 @@ import {
   orderBy,
   onSnapshot,
   Timestamp,
+  disableNetwork,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import toast from "react-hot-toast";
 
 const COLLECTION = "transactions";
 
+// Helper to ensure writes resolve immediately to local IndexedDB when offline
+const withOfflineSafety = async (writeFn) => {
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    disableNetwork(db).catch(() => {});
+  }
+
+  let timerId = null;
+  const timeoutGuard = new Promise((resolve) => {
+    timerId = setTimeout(() => {
+      disableNetwork(db).catch(() => {});
+      resolve();
+    }, 1500);
+  });
+
+  try {
+    const result = await writeFn();
+    return result;
+  } finally {
+    if (timerId) clearTimeout(timerId);
+  }
+};
+
 /**
  * Add a new transaction document to Firestore.
  * Works offline — queued in IndexedDB and auto-synced when online.
  */
 export const addTransaction = async (data) => {
-  const docRef = await addDoc(collection(db, COLLECTION), {
-    date: Timestamp.fromDate(new Date(data.date)),
-    time: data.time || "",
-    type: data.type,
-    category: data.category,
-    subCategory: data.subCategory,
-    amount: Number(data.amount),
-    paymentMethod: data.paymentMethod,
-    description: data.description || "",
-    createdAt: Timestamp.now(),
+  return await withOfflineSafety(async () => {
+    const docRef = await addDoc(collection(db, COLLECTION), {
+      date: Timestamp.fromDate(new Date(data.date)),
+      time: data.time || "",
+      type: data.type,
+      category: data.category,
+      subCategory: data.subCategory,
+      amount: Number(data.amount),
+      paymentMethod: data.paymentMethod,
+      description: data.description || "",
+      createdAt: Timestamp.now(),
+    });
+    return docRef.id;
   });
-  return docRef.id;
 };
 
 /**
  * Update an existing transaction document in Firestore.
  */
 export const updateTransaction = async (id, data) => {
-  const docRef = doc(db, COLLECTION, id);
-  const updatePayload = {
-    type: data.type,
-    category: data.category,
-    subCategory: data.subCategory,
-    amount: Number(data.amount),
-    paymentMethod: data.paymentMethod,
-    description: data.description || "",
-    time: data.time || "",
-    updatedAt: Timestamp.now(),
-  };
+  return await withOfflineSafety(async () => {
+    const docRef = doc(db, COLLECTION, id);
+    const updatePayload = {
+      type: data.type,
+      category: data.category,
+      subCategory: data.subCategory,
+      amount: Number(data.amount),
+      paymentMethod: data.paymentMethod,
+      description: data.description || "",
+      time: data.time || "",
+      updatedAt: Timestamp.now(),
+    };
 
-  if (data.date) {
-    updatePayload.date = data.date instanceof Date 
-      ? Timestamp.fromDate(data.date) 
-      : Timestamp.fromDate(new Date(data.date));
-  }
+    if (data.date) {
+      updatePayload.date = data.date instanceof Date 
+        ? Timestamp.fromDate(data.date) 
+        : Timestamp.fromDate(new Date(data.date));
+    }
 
-  await updateDoc(docRef, updatePayload);
+    await updateDoc(docRef, updatePayload);
+  });
 };
 
 /**
  * Delete a transaction document from Firestore.
  */
 export const deleteTransaction = async (id) => {
-  const docRef = doc(db, COLLECTION, id);
-  await deleteDoc(docRef);
+  return await withOfflineSafety(async () => {
+    const docRef = doc(db, COLLECTION, id);
+    await deleteDoc(docRef);
+  });
 };
 
 /**
