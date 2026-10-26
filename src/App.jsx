@@ -27,7 +27,16 @@ export default function App({ onReady }) {
   const [isLocked, setIsLocked] = useState(() => !!localStorage.getItem("app_pin"));
   const [transactions, setTransactions] = useState([]);
   const [user, setUser] = useState(() => auth.currentUser);
-  const [authChecking, setAuthChecking] = useState(() => !auth.currentUser);
+  // If PIN is set OR we had a previously logged-in user, always start in "checking" state
+  // to prevent the Login screen flashing before Firebase loads from IndexedDB.
+  const [authChecking, setAuthChecking] = useState(() => {
+    if (auth.currentUser) return false; // Already loaded synchronously — no wait needed
+    const hadUser = !!localStorage.getItem("biz_has_user");
+    const hasPIN = !!localStorage.getItem("app_pin");
+    // If user was previously signed in (PIN implies this), keep spinner visible
+    // until Firebase loads the session from IndexedDB. Prevents Login flash.
+    return hadUser || hasPIN;
+  });
   const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -110,10 +119,8 @@ export default function App({ onReady }) {
 
   useEffect(() => {
     let initialCheckDone = false;
+    const hadKnownUser = !!(localStorage.getItem("biz_has_user") || localStorage.getItem("app_pin"));
 
-    // This only runs ONCE to clear the initial loading spinner.
-    // It does NOT use a "resolved" gate so that future auth changes
-    // (e.g., user logging in) always update the user state.
     const finishInitialCheck = (currentUser) => {
       if (initialCheckDone) return;
       initialCheckDone = true;
@@ -121,33 +128,37 @@ export default function App({ onReady }) {
         localStorage.setItem("biz_has_user", "true");
         setUser(currentUser);
       } else {
-        localStorage.removeItem("biz_has_user");
+        // Only clear if confirmed no user on this device
+        if (!hadKnownUser) {
+          localStorage.removeItem("biz_has_user");
+        }
         setUser(null);
       }
       setAuthChecking(false);
     };
 
-    // 1. If auth.currentUser is already populated synchronously, finish immediately
+    // 1. If auth.currentUser is already available synchronously
     if (auth.currentUser) {
       finishInitialCheck(auth.currentUser);
     }
 
-    // 2. ALWAYS listen to ongoing auth state changes (login, logout, token refresh).
-    //    This is what navigates the user INTO the app after a successful login.
+    // 2. Listen to ongoing auth state changes (login, logout, token refresh).
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-      // Always update user state so Login → Dashboard transition works
       if (currentUser) {
         localStorage.setItem("biz_has_user", "true");
         setUser(currentUser);
+        setAuthChecking(false);
       } else {
-        localStorage.removeItem("biz_has_user");
-        setUser(null);
+        // If Firebase genuinely reports null after initial load
+        if (initialCheckDone) {
+          localStorage.removeItem("biz_has_user");
+          setUser(null);
+        }
       }
-      // Also finishes the initial check if still pending
       finishInitialCheck(currentUser);
     });
 
-    // 3. authStateReady (fast path when online)
+    // 3. authStateReady resolves when IndexedDB local persistence is read
     if (typeof auth.authStateReady === "function") {
       auth.authStateReady().then(() => {
         finishInitialCheck(auth.currentUser);
@@ -156,12 +167,14 @@ export default function App({ onReady }) {
       });
     }
 
-    // 4. Offline / Slow Network Fallback:
-    // When offline Firebase Auth hangs waiting for Google's server.
-    // After 250ms (offline) or 800ms (slow network), unblock the UI using
-    // whatever auth.currentUser is available locally from IndexedDB.
-    const timeoutMs = !navigator.onLine ? 250 : 800;
+    // 4. Safety Fallback:
+    // If user has a known session or PIN, give IndexedDB up to 2.5s before falling back.
+    // If brand new user with no saved session, resolve quickly (300ms) to show Login.
+    const timeoutMs = hadKnownUser ? 2500 : 300;
     const fallbackTimer = setTimeout(() => {
+      if (hadKnownUser && !auth.currentUser) {
+        localStorage.removeItem("biz_has_user");
+      }
       finishInitialCheck(auth.currentUser);
     }, timeoutMs);
 
@@ -192,7 +205,10 @@ export default function App({ onReady }) {
     );
   }
 
-  if (authChecking) {
+  // If auth is still checking OR user had a saved session/PIN but Firebase is still restoring it,
+  // show the sleek branded loading spinner — NEVER flash the Login screen.
+  const hadKnownUser = !!(localStorage.getItem("biz_has_user") || localStorage.getItem("app_pin"));
+  if (authChecking || (!user && hadKnownUser)) {
     return (
       <div className="h-[100dvh] w-screen bg-slate-950 flex flex-col items-center justify-center">
         <Logo size="lg" className="animate-pulse mb-6 opacity-50" />
@@ -201,13 +217,16 @@ export default function App({ onReady }) {
     );
   }
 
-  // Show Login screen if not authenticated
+  // Show Login screen only if truly not authenticated and no saved session is expected
   if (!user) {
     return (
       <>
         <Toaster position="top-center" toastOptions={{ style: { background: '#1e293b', color: '#fff', borderRadius: '16px', border: '1px solid #334155' } }} />
         <Login onLoginSuccess={(loggedInUser) => {
-          if (loggedInUser) setUser(loggedInUser);
+          if (loggedInUser) {
+            localStorage.setItem("biz_has_user", "true");
+            setUser(loggedInUser);
+          }
         }} />
       </>
     );
