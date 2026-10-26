@@ -109,11 +109,14 @@ export default function App({ onReady }) {
   useEffect(() => { onReady?.(); }, []);
 
   useEffect(() => {
-    let resolved = false;
+    let initialCheckDone = false;
 
-    const resolveAuth = (currentUser) => {
-      if (resolved) return;
-      resolved = true;
+    // This only runs ONCE to clear the initial loading spinner.
+    // It does NOT use a "resolved" gate so that future auth changes
+    // (e.g., user logging in) always update the user state.
+    const finishInitialCheck = (currentUser) => {
+      if (initialCheckDone) return;
+      initialCheckDone = true;
       if (currentUser) {
         localStorage.setItem("biz_has_user", "true");
         setUser(currentUser);
@@ -124,36 +127,42 @@ export default function App({ onReady }) {
       setAuthChecking(false);
     };
 
-    // 1. If auth.currentUser is already populated synchronously, resolve immediately
+    // 1. If auth.currentUser is already populated synchronously, finish immediately
     if (auth.currentUser) {
-      resolveAuth(auth.currentUser);
+      finishInitialCheck(auth.currentUser);
     }
 
-    // 2. Standard Firebase auth listener
+    // 2. ALWAYS listen to ongoing auth state changes (login, logout, token refresh).
+    //    This is what navigates the user INTO the app after a successful login.
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-      resolveAuth(currentUser);
+      // Always update user state so Login → Dashboard transition works
+      if (currentUser) {
+        localStorage.setItem("biz_has_user", "true");
+        setUser(currentUser);
+      } else {
+        localStorage.removeItem("biz_has_user");
+        setUser(null);
+      }
+      // Also finishes the initial check if still pending
+      finishInitialCheck(currentUser);
     });
 
-    // 3. authStateReady (fast when online)
+    // 3. authStateReady (fast path when online)
     if (typeof auth.authStateReady === "function") {
       auth.authStateReady().then(() => {
-        resolveAuth(auth.currentUser);
+        finishInitialCheck(auth.currentUser);
       }).catch(() => {
-        resolveAuth(auth.currentUser);
+        finishInitialCheck(auth.currentUser);
       });
     }
 
-    // 4. Critical Offline / Slow Network Fallback:
-    // When offline or on a hanging connection, Firebase Auth will hang for 10-30s
-    // waiting for Google's server to refresh the token.
-    // IndexedDB completes loading within 50ms locally.
-    // So after 250ms (offline) or 800ms (online), if Firebase network has not returned,
-    // grab auth.currentUser directly and unblock the UI immediately!
+    // 4. Offline / Slow Network Fallback:
+    // When offline Firebase Auth hangs waiting for Google's server.
+    // After 250ms (offline) or 800ms (slow network), unblock the UI using
+    // whatever auth.currentUser is available locally from IndexedDB.
     const timeoutMs = !navigator.onLine ? 250 : 800;
     const fallbackTimer = setTimeout(() => {
-      if (!resolved) {
-        resolveAuth(auth.currentUser);
-      }
+      finishInitialCheck(auth.currentUser);
     }, timeoutMs);
 
     return () => {
@@ -197,7 +206,9 @@ export default function App({ onReady }) {
     return (
       <>
         <Toaster position="top-center" toastOptions={{ style: { background: '#1e293b', color: '#fff', borderRadius: '16px', border: '1px solid #334155' } }} />
-        <Login />
+        <Login onLoginSuccess={(loggedInUser) => {
+          if (loggedInUser) setUser(loggedInUser);
+        }} />
       </>
     );
   }
