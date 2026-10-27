@@ -27,10 +27,7 @@ export default function App({ onReady }) {
   const [isLocked, setIsLocked] = useState(() => !!localStorage.getItem("app_pin"));
   const [transactions, setTransactions] = useState([]);
   const [user, setUser] = useState(() => auth.currentUser);
-  const [authChecking, setAuthChecking] = useState(() => {
-    if (auth.currentUser) return false;
-    return !!localStorage.getItem("biz_has_user");
-  });
+  const [authChecking, setAuthChecking] = useState(() => !auth.currentUser);
   const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -113,7 +110,7 @@ export default function App({ onReady }) {
 
   useEffect(() => {
     let initialCheckDone = false;
-    const hadSavedUser = !!localStorage.getItem("biz_has_user");
+    const hadKnownUser = !!(localStorage.getItem("biz_has_user") || localStorage.getItem("app_pin"));
 
     const finishInitialCheck = (currentUser) => {
       if (initialCheckDone) return;
@@ -122,7 +119,6 @@ export default function App({ onReady }) {
         localStorage.setItem("biz_has_user", "true");
         setUser(currentUser);
       } else {
-        localStorage.removeItem("biz_has_user");
         setUser(null);
       }
       setAuthChecking(false);
@@ -141,7 +137,6 @@ export default function App({ onReady }) {
         setAuthChecking(false);
       } else {
         if (initialCheckDone) {
-          localStorage.removeItem("biz_has_user");
           setUser(null);
         }
       }
@@ -158,8 +153,8 @@ export default function App({ onReady }) {
     }
 
     // 4. Safety Fallback:
-    // Give IndexedDB 4.5s if device had a known user, 400ms if fresh visitor
-    const timeoutMs = hadSavedUser ? 4500 : 400;
+    // Give IndexedDB 4.5s if device had a known user/PIN, 600ms if fresh visitor
+    const timeoutMs = hadKnownUser ? 4500 : 600;
     const fallbackTimer = setTimeout(() => {
       finishInitialCheck(auth.currentUser);
     }, timeoutMs);
@@ -192,8 +187,8 @@ export default function App({ onReady }) {
   }
 
   // Show loading spinner while restoring Firebase session — NEVER flash the Login screen.
-  const hadSavedUser = !!localStorage.getItem("biz_has_user");
-  if (authChecking || (!user && hadSavedUser)) {
+  const hadKnownUser = !!(localStorage.getItem("biz_has_user") || localStorage.getItem("app_pin"));
+  if (authChecking || (!user && hadKnownUser)) {
     return (
       <div className="h-[100dvh] w-screen bg-slate-950 flex flex-col items-center justify-center">
         <Logo size="lg" className="animate-pulse mb-6 opacity-50" />
